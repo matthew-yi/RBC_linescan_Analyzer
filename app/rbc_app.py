@@ -3,6 +3,7 @@
 import json
 import math
 import queue
+import shutil
 import subprocess
 import sys
 import threading
@@ -25,6 +26,14 @@ def create_run_folder(source):
             return output
         except FileExistsError:
             number += 1
+
+
+def completed_image_count(output, total):
+    # External Mac volumes can contain ._0.txt resource-fork sidecars. Count
+    # only the exact output names generated for this batch, never all *.txt.
+    expected = {f'{index}.txt' for index in range(total)}
+    return sum(path.name in expected and path.is_file()
+               for path in (output / 'detections').glob('*.txt'))
 
 
 class App:
@@ -84,6 +93,9 @@ class App:
         self.tool = tk.StringVar(value='add')
         self.show_lines = tk.BooleanVar(value=True)
         self._image_key = None
+        self.brightness = tk.DoubleVar(value=0)
+        self.contrast = tk.DoubleVar(value=1)
+        self._contrast_after = None
         self.origin_x = 0
         self.review_buttons = []
         sidebar = ttk.Frame(self.editor, padding=12, width=200)
@@ -94,15 +106,34 @@ class App:
             button = ttk.Radiobutton(sidebar, text=label, variable=self.tool, value=mode, command=self.render)
             button.pack(anchor='w', pady=3)
             self.review_buttons.append(button)
+        bc = ttk.LabelFrame(sidebar, text='Brightness / Contrast', padding=6)
+        bc.pack(fill='x', pady=8)
+        for label, variable, low, high in [('Brightness', self.brightness, -127, 127),
+                                          ('Contrast', self.contrast, .25, 4)]:
+            ttk.Label(bc, text=label).pack(anchor='w')
+            slider = ttk.Scale(bc, from_=low, to=high, variable=variable, command=self.adjust_contrast)
+            slider.pack(fill='x')
+            self.review_buttons.append(slider)
+        button = ttk.Button(bc, text='Reset B&C', command=self.reset_contrast)
+        button.pack(fill='x', pady=(4, 0))
+        self.review_buttons.append(button)
         ttk.Separator(sidebar).pack(fill='x', pady=10)
-        for label, command in [
+        for label, command in [('Clear, edit manually', self.clear_manual), ('Revert to original', self.reset)]:
+            button = ttk.Button(sidebar, text=label, command=command, state='disabled')
+            button.pack(fill='x', pady=3)
+            self.review_buttons.append(button)
+        buttons = ttk.Frame(sidebar)
+        buttons.pack(fill='x')
+        for column in range(2):
+            buttons.columnconfigure(column, weight=1)
+        for n, (label, command) in enumerate([
             ('Zoom +', lambda:self.zoom(1.5)), ('Zoom −', lambda:self.zoom(1/1.5)),
             ('Fit width', self.fit), ('Fit entire image', self.fit_image),
             ('100%', lambda:self.set_zoom(1)), ('Undo', self.undo_edit),
-            ('Reset automatic lines', self.reset), ('Save', self.save),
-            ('Previous', lambda:self.move(-1)), ('Save / Next', lambda:self.move(1))]:
-            button = ttk.Button(sidebar, text=label, command=command, state='disabled')
-            button.pack(fill='x', pady=3)
+            ('Save', self.save), ('Finish / export', self.finish_review),
+            ('Previous', lambda:self.move(-1)), ('Save / Next', lambda:self.move(1))]):
+            button = ttk.Button(buttons, text=label, command=command, state='disabled')
+            button.grid(row=n//2, column=n%2, sticky='ew', pady=3, padx=1)
             self.review_buttons.append(button)
         check = ttk.Checkbutton(sidebar, text='Show RBC lines', variable=self.show_lines, command=self.render)
         check.pack(anchor='w', pady=10)
@@ -235,7 +266,7 @@ class App:
                 self.process = subprocess.Popen([str(executable), '--headless', '--console', '-macro', str(macro)], stdout=log, stderr=subprocess.STDOUT)
                 completed = -1
                 while True:
-                    count = len(list((output / 'detections').glob('*.txt')))
+                    count = completed_image_count(output, len(records))
                     if count != completed:
                         completed = count
                         self.events.put(('progress', (count, len(records))))
@@ -308,6 +339,7 @@ class App:
         with Image.open(self.output / 'previews' / f'{self.index}.png') as image:
             self.image = image.convert('RGB')
         self.undo = []
+        self.reset_contrast()
         self._image_key = None
         self.open_editor()
         self.editor.title(f'Linescan {self.index+1}/{len(self.records)} — {self.records[self.index]["image"]}')
@@ -346,9 +378,11 @@ class App:
         from PIL import Image, ImageTk
         w,h = max(1, round(self.image.width*self.scale)), max(1, round(self.image.height*self.scale))
         # Keep the bitmap when editing lines; only rebuild it after zoom or load.
-        key = (self.index, w, h)
+        key = (self.index, w, h, self.brightness.get(), self.contrast.get())
         if key != self._image_key:
-            self.photo = ImageTk.PhotoImage(self.image.resize((w,h), Image.Resampling.BILINEAR))
+            lut = [max(0, min(255, round((v-127.5+self.brightness.get())*self.contrast.get()+127.5))) for v in range(256)]
+            display = self.image.convert('L').point(lut)
+            self.photo = ImageTk.PhotoImage(display.resize((w,h), Image.Resampling.BILINEAR))
             self.canvas.delete('bitmap')
             self.canvas.create_image(0, 0, image=self.photo, anchor='nw', tags='bitmap')
             self._image_key = key
@@ -417,7 +451,37 @@ class App:
             self.undo.append(rec['peaks'].copy())
             rec['peaks'] = rec['automatic_peaks'].copy()
             rec['reviewed'] = False
+            self.tool.set('add')
+            self.show_lines.set(True)
+            self.reset_contrast()
             self.render()
+
+    def clear_manual(self):
+        if not self.records or self.busy: return
+        rec = self.records[self.index]
+        self.undo.append(rec['peaks'].copy())
+        rec['peaks'] = []
+        rec['reviewed'] = False
+        self.tool.set('add')
+        self.show_lines.set(True)
+        self.render()
+
+    def adjust_contrast(self, value=None):
+        if self._contrast_after is not None:
+            self.root.after_cancel(self._contrast_after)
+        self._contrast_after = self.root.after(40, self.draw_contrast)
+
+    def draw_contrast(self):
+        self._contrast_after = None
+        self.render()
+
+    def reset_contrast(self):
+        if self._contrast_after is not None:
+            self.root.after_cancel(self._contrast_after)
+            self._contrast_after = None
+        self.brightness.set(0)
+        self.contrast.set(1)
+        self.render()
 
     def save(self):
         if not self.records: return True
@@ -431,7 +495,11 @@ class App:
                 draw.line((0,y,self.image.width-1,y-(self.image.width-1)*slope), fill=(255,0,0), width=1)
             path = self.output / 'RBC_Annotated' / (rec['image']+'_annotated.tif')
             temp = path.with_suffix('.tmp')
-            annotated.save(temp, format='TIFF')
+            original = self.output / 'original_annotations' / path.name
+            if original.exists() and sorted(rec['peaks']) == sorted(rec['automatic_peaks']):
+                shutil.copyfile(original, temp)
+            else:
+                annotated.save(temp, format='TIFF')
             temp.replace(path)
             rec['reviewed'] = True
             save_session(self.records, self.output)
@@ -445,10 +513,21 @@ class App:
         if not self.records or not self.save(): return
         target = self.index+delta
         if target >= len(self.records):
-            messagebox.showinfo('Review complete', f'All images reached. {sum(r["reviewed"] for r in self.records)}/{len(self.records)} reviewed.\nResults saved to:\n{self.output}')
+            self.finish_review(save_current=False)
         elif target >= 0:
             self.index = target
             self.load()
+
+    def finish_review(self, save_current=True):
+        if not self.records or self.busy: return
+        if save_current and not self.save(): return
+        missing = next((i for i,r in enumerate(self.records) if not r['reviewed']), None)
+        if missing is not None:
+            messagebox.showinfo('Review remaining images', 'Review every image before exporting final results. Opening the first unreviewed image.', parent=self.editor)
+            self.index = missing
+            self.load()
+            return
+        messagebox.showinfo('Review complete', f'Final corrected results saved:\n{self.output / "RBC_Final_Results.xlsx"}\n{self.output / "RBC_Final_Results.csv"}', parent=self.editor)
 
     def close(self):
         if self.busy:

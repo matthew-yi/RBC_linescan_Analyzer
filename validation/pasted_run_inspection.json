@@ -1,0 +1,16 @@
+{
+  "run_folder": "L4 Line scans Baseline - RBC Analysis - 2026-11-11 13-43",
+  "input_images": 84,
+  "unique_input_contents": 84,
+  "inputs_identical_to_baseline": 84,
+  "macro_analysis_calls": 84,
+  "unique_macro_output_files": 84,
+  "completed_images": 53,
+  "completed_counts_matching_baseline": 53,
+  "next_image_started": 54,
+  "logged_errors": [],
+  "completion_marker_present": false,
+  "session_present": false,
+  "sidecars_present_in_pasted_copy": false,
+  "original_external_volume_sidecar_cause_confirmed": false
+}

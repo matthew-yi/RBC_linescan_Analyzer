@@ -1,0 +1,10 @@
+{
+  "source": "Ag8 Baseline/Ag8 Baseline.xlsx",
+  "scan_rows": 84,
+  "matching_frame_periods": 84,
+  "rows_with_corrected_count_and_flux": 83,
+  "flux_matches_count_divided_by_frame_period": 83,
+  "missing_corrected_count_scans": [
+    50
+  ]
+}

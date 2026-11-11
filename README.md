@@ -42,6 +42,12 @@ On macOS you can also double-click **Launch RBC Analyzer.command** after install
 Closing the editor saves and hides it while leaving the analyzer open. Use **Open editor** to return to the current scan. Ctrl+S / Ctrl+Z (Command+S / Command+Z on Mac) save and undo in the editor.
 The mouse wheel scrolls the linescan from anywhere inside the editor, including over the side tools and measurements. Ctrl + wheel zooms from those areas as well.
 
+**Brightness / Contrast** sliders adjust the display like B&C controls; **Reset B&C** restores the display. These controls do not change source pixels, detections, counts, or exported annotations.
+
+**Clear, edit manually** removes all current lines and sets count and flux to zero. Click each RBC streak to count from scratch; Undo can restore the cleared lines. **Revert to original** restores the automatic lines, count, and default display. New runs preserve the first automatic TIFF in `original_annotations/`; saving a reverted image restores that TIFF byte-for-byte. Older sessions without a preserved TIFF restore the automatic line coordinates on the original preview.
+
+After every image is reviewed, saving automatically creates **`RBC_Final_Results.xlsx`** and **`RBC_Final_Results.csv`**. **Finish / export** saves the current image and takes you to any remaining unreviewed image before completion. The final table includes image name, automatic count, net lines added/removed, final RBC count, frame period, and final flux. Final count equals automatic count + lines added − lines removed; flux equals final count / frame period. Later edits refresh the final exports when saved. An incomplete saved review removes outdated final exports while keeping the working results CSVs.
+
 Each run creates a folder beside the selected folder, named after the experiment and a readable date/time, for example `L4 Line scans Baseline - RBC Analysis - 2026-11-11 14-30`. If a name already exists, a suffix such as `(2)` keeps the runs separate. When starting from `collected_ome_tif`, the experiment name comes from its parent folder. Existing runs can still be resumed using their `session.json`.
 
 Each output folder contains:
@@ -49,6 +55,8 @@ Each output folder contains:
 - `collected_ome_tif`, `collected_xml`, `collected_ch3source`: organized input copies. Duplicate image names receive a path hash to prevent overwriting.
 - `linescan_periods_batch.tsv`: frame-level timing metadata.
 - `RBC_Annotated`: annotated TIFF images, updated after manual corrections.
+- `original_annotations`: preserved first automatic annotations for exact restoration in new runs.
+- `RBC_Final_Results.xlsx` and `RBC_Final_Results.csv`: corrected counts, net additions/removals, frame periods, and flux after all images are reviewed.
 - `RBC_Results.csv` and `RBC_Results_sorted.csv`: numeric-sorted measurements, automatic counts, review flags, and duration source. Corrections update counts, flux, lineal density, and interval CV; the detected angle and velocity remain fixed.
 - `session.json`: editable line coordinates, metadata, and review state.
 - `analysis_input`: TIFF copies with plain filenames for Fiji’s native headless TIFF reader.
@@ -79,3 +87,6 @@ For the recorded validation run, regenerate the per-image comparison and summary
 
 Outputs are `validation/validation_ag8/baseline_comparison.csv` and `validation/validation_ag8/validation_summary.json`. The comparison checks counts, frame periods against the supplied timing table, corrected flux, and automatic annotation pixels. It checks agreement with the supplied baseline; it does not independently establish biological detection accuracy.
 # RBC_linescan_Analyzer
+
+
+The Excel **Results** sheet follows the Ag8 workbook's core columns: Line scan #, # of lines, pixels/line, line scan period (s), total time (s), # of RBCs, and # RBCs/s. Headers are on row 2; flux cells contain Excel formulas such as `F3/E3`, with calculated values already cached. The **Review Details** sheet contains filenames and the automatic counts, net additions/removals, final counts, frame periods, and flux. The CSV retains this detailed edit table.

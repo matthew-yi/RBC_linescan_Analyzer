@@ -1,0 +1,313 @@
+The operation couldn’t be completed. Unable to locate a Java Runtime that supports (null).
+Please visit http://www.java.com for information on installing Java.
+
+The operation couldn’t be completed. Unable to locate a Java Runtime that supports (null).
+Please visit http://www.java.com for information on installing Java.
+
+Rule0: nLoose=132 nTight=155 boost=0.17
+Rule0: skipped
+Final detect: dense vessel (nLoose=132), baseline ON, sigma=7.50 minDist=24
+Pass1: 48 RBCs at -53.2Â°
+PlasmaCheck: spacingCV=0.310 period=62.5 flag=0
+Rule0: nLoose=285 nTight=306 boost=0.07
+Rule0: skipped
+Rule2a: triggered nFinest=285 nCoarset=38 nLoose=285
+Final detect: dense vessel (nLoose=285), baseline ON, sigma=1.32 minDist=4
+Pass1: 206 RBCs at -32.0Â°
+PlasmaCheck: spacingCV=0.531 period=14.6 flag=0
+Rule0: nLoose=217 nTight=267 boost=0.23
+Rule0: skipped
+Rule2a: triggered nFinest=217 nCoarset=38 nLoose=217
+Final detect: dense vessel (nLoose=217), baseline ON, sigma=1.73 minDist=6
+Pass1: 70 RBCs at -56.4Â°
+PlasmaCheck: spacingCV=0.535 period=42.9 flag=0
+Rule0: nLoose=196 nTight=227 boost=0.16
+Rule0: skipped
+Final detect: dense vessel (nLoose=196), baseline ON, sigma=1.91 minDist=6
+Pass1: 149 RBCs at 34.0Â°
+PlasmaCheck: spacingCV=0.413 period=20.1 flag=0
+Rule0: nLoose=297 nTight=338 boost=0.14
+Rule0: skipped
+Rule2a: triggered nFinest=297 nCoarset=30 nLoose=297
+Final detect: dense vessel (nLoose=297), baseline ON, sigma=1.26 minDist=4
+Pass1: 188 RBCs at -34.8Â°
+PlasmaCheck: spacingCV=0.471 period=16.0 flag=0
+Rule0: nLoose=122 nTight=137 boost=0.12
+Rule0: skipped
+Final detect: dense vessel (nLoose=122), baseline ON, sigma=4.93 minDist=16
+Pass1: 75 RBCs at -39.0Â°
+PlasmaCheck: spacingCV=0.402 period=40.0 flag=0
+Rule0: nLoose=184 nTight=227 boost=0.23
+Rule0: skipped
+Rule2a: triggered nFinest=184 nCoarset=37 nLoose=184
+Final detect: dense vessel (nLoose=184), baseline ON, sigma=2.04 minDist=7
+Pass1: 61 RBCs at 53.2Â°
+PlasmaCheck: spacingCV=0.458 period=49.2 flag=0
+Rule0: nLoose=153 nTight=185 boost=0.21
+Rule0: skipped
+Rule2a: triggered nFinest=153 nCoarset=48 nLoose=153
+Final detect: dense vessel (nLoose=153), baseline ON, sigma=2.45 minDist=8
+Pass1: 66 RBCs at -59.0Â°
+PlasmaCheck: spacingCV=0.304 period=45.5 flag=0
+Rule0: nLoose=246 nTight=307 boost=0.25
+Rule0: skipped
+Rule2a: triggered nFinest=246 nCoarset=27 nLoose=246
+Final detect: dense vessel (nLoose=246), baseline ON, sigma=1.52 minDist=5
+Pass1: 68 RBCs at 63.6Â°
+PlasmaCheck: spacingCV=0.675 period=44.1 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 27 RBCs
+Rule0: nLoose=141 nTight=162 boost=0.15
+Rule0: skipped
+Final detect: dense vessel (nLoose=141), baseline ON, sigma=3.99 minDist=13
+Pass1: 91 RBCs at -35.2Â°
+PlasmaCheck: spacingCV=0.429 period=33.0 flag=0
+Rule0: nLoose=151 nTight=187 boost=0.24
+Rule0: skipped
+Rule2a: triggered nFinest=151 nCoarset=44 nLoose=151
+Final detect: dense vessel (nLoose=151), baseline ON, sigma=2.48 minDist=8
+Pass1: 92 RBCs at -45.6Â°
+PlasmaCheck: spacingCV=0.441 period=32.6 flag=0
+Rule0: nLoose=197 nTight=230 boost=0.17
+Rule0: skipped
+Rule2a: triggered nFinest=197 nCoarset=48 nLoose=197
+Final detect: dense vessel (nLoose=197), baseline ON, sigma=1.90 minDist=6
+Pass1: 89 RBCs at -57.6Â°
+PlasmaCheck: spacingCV=0.353 period=33.7 flag=0
+Rule0: nLoose=422 nTight=527 boost=0.25
+Rule0: skipped
+Rule2a: triggered nFinest=422 nCoarset=23 nLoose=422
+Final detect: dense vessel (nLoose=422), baseline ON, sigma=0.89 minDist=3
+Pass1: 217 RBCs at 74.8Â°
+PlasmaCheck: spacingCV=1.400 period=13.8 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 21 RBCs
+Rule0: nLoose=159 nTight=199 boost=0.25
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 199 RBCs at 54.4Â°
+PlasmaCheck: spacingCV=1.043 period=15.1 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 80 RBCs
+Rule0: nLoose=111 nTight=125 boost=0.13
+Rule0: skipped
+Final detect: dense vessel (nLoose=111), baseline ON, sigma=5.43 minDist=17
+Pass1: 66 RBCs at -44.8Â°
+PlasmaCheck: spacingCV=0.337 period=45.5 flag=0
+Rule0: nLoose=258 nTight=272 boost=0.05
+Rule0: skipped
+Rule2a: triggered nFinest=258 nCoarset=45 nLoose=258
+Final detect: dense vessel (nLoose=258), baseline ON, sigma=1.45 minDist=5
+Pass1: 193 RBCs at 30.2Â°
+PlasmaCheck: spacingCV=0.399 period=15.5 flag=0
+Rule0: nLoose=204 nTight=238 boost=0.17
+Rule0: skipped
+Rule2a: triggered nFinest=204 nCoarset=45 nLoose=204
+Final detect: dense vessel (nLoose=204), baseline ON, sigma=1.84 minDist=6
+Pass1: 108 RBCs at -40.4Â°
+PlasmaCheck: spacingCV=0.363 period=27.8 flag=0
+Rule0: nLoose=238 nTight=308 boost=0.29
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 306 RBCs at 59.8Â°
+PlasmaCheck: spacingCV=1.219 period=9.8 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 68 RBCs
+Rule0: nLoose=130 nTight=157 boost=0.21
+Rule0: skipped
+Final detect: dense vessel (nLoose=130), baseline ON, sigma=5.51 minDist=18
+Pass1: 68 RBCs at 45.4Â°
+PlasmaCheck: spacingCV=0.313 period=44.1 flag=0
+Rule0: nLoose=248 nTight=258 boost=0.04
+Rule0: skipped
+Final detect: dense vessel (nLoose=248), baseline ON, sigma=1.51 minDist=5
+Pass1: 195 RBCs at -26.0Â°
+PlasmaCheck: spacingCV=0.405 period=15.4 flag=0
+Rule0: nLoose=162 nTight=186 boost=0.15
+Rule0: skipped
+Final detect: dense vessel (nLoose=162), baseline ON, sigma=2.31 minDist=7
+Pass1: 138 RBCs at 29.6Â°
+PlasmaCheck: spacingCV=0.303 period=21.7 flag=0
+Rule0: nLoose=154 nTight=196 boost=0.27
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 197 RBCs at 58.8Â°
+PlasmaCheck: spacingCV=1.187 period=15.2 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 57 RBCs
+Rule0: nLoose=254 nTight=270 boost=0.06
+Rule0: skipped
+Rule2a: triggered nFinest=254 nCoarset=43 nLoose=254
+Final detect: dense vessel (nLoose=254), baseline ON, sigma=1.48 minDist=5
+Pass1: 172 RBCs at -37.4Â°
+PlasmaCheck: spacingCV=0.589 period=17.4 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 52 RBCs
+Rule0: nLoose=112 nTight=139 boost=0.24
+Rule0: skipped
+Final detect: dense vessel (nLoose=112), baseline ON, sigma=6.58 minDist=21
+Pass1: 56 RBCs at 55.2Â°
+PlasmaCheck: spacingCV=0.340 period=53.6 flag=0
+Rule0: nLoose=207 nTight=253 boost=0.22
+Rule0: skipped
+Rule2a: triggered nFinest=207 nCoarset=56 nLoose=207
+Final detect: dense vessel (nLoose=207), baseline ON, sigma=1.81 minDist=6
+Pass1: 81 RBCs at -53.6Â°
+PlasmaCheck: spacingCV=0.250 period=37.0 flag=0
+Rule0: nLoose=170 nTight=202 boost=0.19
+Rule0: skipped
+Rule2a: triggered nFinest=170 nCoarset=39 nLoose=170
+Final detect: dense vessel (nLoose=170), baseline ON, sigma=2.21 minDist=7
+Pass1: 124 RBCs at -48.0Â°
+PlasmaCheck: spacingCV=0.280 period=24.2 flag=0
+Rule0: nLoose=444 nTight=569 boost=0.28
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 567 RBCs at 69.2Â°
+PlasmaCheck: spacingCV=1.162 period=5.3 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 48 RBCs
+Rule0: nLoose=203 nTight=252 boost=0.24
+Rule0: skipped
+Rule2a: triggered nFinest=203 nCoarset=39 nLoose=203
+Final detect: dense vessel (nLoose=203), baseline ON, sigma=1.85 minDist=6
+Pass1: 52 RBCs at 65.6Â°
+PlasmaCheck: spacingCV=0.503 period=57.7 flag=0
+Rule0: nLoose=283 nTight=289 boost=0.02
+Rule0: skipped
+Rule2a: triggered nFinest=283 nCoarset=53 nLoose=283
+Final detect: dense vessel (nLoose=283), baseline ON, sigma=1.33 minDist=4
+Pass1: 203 RBCs at -29.6Â°
+PlasmaCheck: spacingCV=0.446 period=14.8 flag=0
+Rule0: nLoose=316 nTight=332 boost=0.05
+Rule0: skipped
+Rule2a: triggered nFinest=316 nCoarset=41 nLoose=316
+Final detect: dense vessel (nLoose=316), baseline ON, sigma=1.19 minDist=4
+Pass1: 237 RBCs at -26.2Â°
+PlasmaCheck: spacingCV=0.391 period=12.7 flag=0
+Rule0: nLoose=332 nTight=346 boost=0.04
+Rule0: skipped
+Rule2a: triggered nFinest=332 nCoarset=42 nLoose=332
+Final detect: dense vessel (nLoose=332), baseline ON, sigma=1.13 minDist=4
+Pass1: 255 RBCs at 27.8Â°
+PlasmaCheck: spacingCV=0.503 period=11.8 flag=0
+Rule0: nLoose=228 nTight=249 boost=0.09
+Rule0: skipped
+Final detect: dense vessel (nLoose=228), baseline ON, sigma=1.64 minDist=5
+Pass1: 182 RBCs at -38.8Â°
+PlasmaCheck: spacingCV=0.357 period=16.5 flag=0
+Rule0: nLoose=347 nTight=348 boost=0.00
+Rule0: skipped
+Rule2a: triggered nFinest=347 nCoarset=47 nLoose=347
+Final detect: dense vessel (nLoose=347), baseline ON, sigma=1.08 minDist=3
+Pass1: 271 RBCs at -22.2Â°
+PlasmaCheck: spacingCV=0.433 period=11.1 flag=0
+Rule0: nLoose=404 nTight=411 boost=0.02
+Rule0: skipped
+Rule2a: triggered nFinest=404 nCoarset=36 nLoose=404
+Final detect: dense vessel (nLoose=404), baseline ON, sigma=0.93 minDist=3
+Pass1: 334 RBCs at -16.6Â°
+PlasmaCheck: spacingCV=0.387 period=9.0 flag=0
+Rule0: nLoose=277 nTight=278 boost=0.00
+Rule0: skipped
+Final detect: dense vessel (nLoose=277), baseline ON, sigma=1.35 minDist=4
+Pass1: 260 RBCs at -17.2Â°
+PlasmaCheck: spacingCV=0.395 period=11.5 flag=0
+Rule0: nLoose=371 nTight=381 boost=0.03
+Rule0: skipped
+Rule2a: triggered nFinest=371 nCoarset=51 nLoose=371
+Final detect: dense vessel (nLoose=371), baseline ON, sigma=1.01 minDist=3
+Pass1: 307 RBCs at -16.2Â°
+PlasmaCheck: spacingCV=0.390 period=9.8 flag=0
+Rule0: nLoose=140 nTight=143 boost=0.02
+Rule0: skipped
+Final detect: dense vessel (nLoose=140), baseline ON, sigma=2.68 minDist=9
+Pass1: 127 RBCs at -38.4Â°
+PlasmaCheck: spacingCV=0.374 period=23.6 flag=0
+Rule0: nLoose=178 nTight=184 boost=0.03
+Rule0: skipped
+Final detect: dense vessel (nLoose=178), baseline ON, sigma=2.11 minDist=7
+Pass1: 155 RBCs at -38.6Â°
+PlasmaCheck: spacingCV=0.345 period=19.4 flag=0
+Rule0: nLoose=119 nTight=144 boost=0.21
+Rule0: skipped
+Final detect: dense vessel (nLoose=119), baseline ON, sigma=4.81 minDist=15
+Pass1: 80 RBCs at 43.2Â°
+PlasmaCheck: spacingCV=0.354 period=37.5 flag=0
+Rule0: nLoose=230 nTight=283 boost=0.23
+Rule0: skipped
+Rule2a: triggered nFinest=230 nCoarset=23 nLoose=230
+Final detect: dense vessel (nLoose=230), baseline ON, sigma=1.63 minDist=5
+Pass1: 39 RBCs at -68.6Â°
+PlasmaCheck: spacingCV=0.574 period=76.9 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 23 RBCs
+Rule0: nLoose=125 nTight=140 boost=0.12
+Rule0: skipped
+Final detect: dense vessel (nLoose=125), baseline ON, sigma=5.51 minDist=18
+Pass1: 67 RBCs at -40.8Â°
+PlasmaCheck: spacingCV=0.336 period=44.8 flag=0
+Rule0: nLoose=260 nTight=260 boost=0.00
+Rule0: skipped
+Final detect: dense vessel (nLoose=260), baseline ON, sigma=1.44 minDist=5
+Pass1: 225 RBCs at -17.4Â°
+PlasmaCheck: spacingCV=0.351 period=13.3 flag=0
+Rule0: nLoose=206 nTight=215 boost=0.04
+Rule0: skipped
+Final detect: dense vessel (nLoose=206), baseline ON, sigma=1.82 minDist=6
+Pass1: 163 RBCs at -33.4Â°
+PlasmaCheck: spacingCV=0.440 period=18.4 flag=0
+Rule0: nLoose=293 nTight=353 boost=0.20
+Rule0: skipped
+Rule2a: triggered nFinest=293 nCoarset=34 nLoose=293
+Final detect: dense vessel (nLoose=293), baseline ON, sigma=1.28 minDist=4
+Pass1: 139 RBCs at -45.4Â°
+PlasmaCheck: spacingCV=0.659 period=21.6 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 58 RBCs
+Rule0: nLoose=196 nTight=257 boost=0.31
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 257 RBCs at -52.6Â°
+PlasmaCheck: spacingCV=1.527 period=11.7 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 37 RBCs
+Rule0: nLoose=397 nTight=412 boost=0.04
+Rule0: skipped
+Rule2a: triggered nFinest=397 nCoarset=45 nLoose=397
+Final detect: dense vessel (nLoose=397), baseline ON, sigma=0.94 minDist=3
+Pass1: 316 RBCs at -19.8Â°
+PlasmaCheck: spacingCV=0.480 period=9.5 flag=0
+Rule0: nLoose=155 nTight=160 boost=0.03
+Rule0: skipped
+Final detect: dense vessel (nLoose=155), baseline ON, sigma=2.42 minDist=8
+Pass1: 132 RBCs at -28.8Â°
+PlasmaCheck: spacingCV=0.419 period=22.7 flag=0
+Rule0: nLoose=107 nTight=123 boost=0.15
+Rule0: skipped
+Final detect: dense vessel (nLoose=107), baseline ON, sigma=5.95 minDist=19
+Pass1: 62 RBCs at -49.4Â°
+PlasmaCheck: spacingCV=0.282 period=48.4 flag=0
+Rule0: nLoose=161 nTight=174 boost=0.08
+Rule0: skipped
+Final detect: dense vessel (nLoose=161), baseline ON, sigma=2.33 minDist=7
+Pass1: 141 RBCs at -39.2Â°
+PlasmaCheck: spacingCV=0.348 period=21.3 flag=0
+Rule0: nLoose=677 nTight=890 boost=0.31
+Rule0: TRIGGERED dense path â using baseline subtraction
+Pass1: 891 RBCs at 82.0Â°
+PlasmaCheck: spacingCV=0.390 period=3.4 flag=1
+Pass1 flagged â running V9 fallback
+Pass2 (V9 fallback): 17 RBCs
+Rule0: nLoose=393 nTight=424 boost=0.08
+Rule0: skipped
+Rule2a: triggered nFinest=393 nCoarset=43 nLoose=393
+Final detect: dense vessel (nLoose=393), baseline ON, sigma=0.95 minDist=3
+Pass1: 315 RBCs at 17.2Â°
+PlasmaCheck: spacingCV=0.428 period=9.5 flag=0
+Rule0: nLoose=193 nTight=224 boost=0.16
+Rule0: skipped
+Rule2a: triggered nFinest=193 nCoarset=42 nLoose=193
+Final detect: dense vessel (nLoose=193), baseline ON, sigma=1.94 minDist=6
+Pass1: 120 RBCs at -44.0Â°
+PlasmaCheck: spacingCV=0.428 period=25.0 flag=0
+Rule0: nLoose=105 nTight=119 boost=0.13
+Rule0: skipped
+Final detect: dense vessel (nLoose=105), baseline ON, sigma=4.93 minDist=16
+Pass1: 75 RBCs at -43.4Â°
+PlasmaCheck: spacingCV=0.321 period=40.0 flag=0

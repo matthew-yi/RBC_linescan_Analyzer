@@ -33,3 +33,15 @@ Mac/Linux launch after setup: `.venv/bin/python app/rbc_app.py`
 Windows launch after setup: `.venv\Scripts\python.exe app\rbc_app.py`
 
 Only Pillow is installed through pip. Tkinter comes with the Python installation, and Fiji is installed separately.
+
+## Contrast, manual counting, and final spreadsheets
+
+- **Brightness / Contrast** sliders change only the display. **Reset B&C** restores it. Counts and source image pixels are unchanged.
+- **Clear, edit manually** clears all lines and sets the count to zero. Click each streak to add RBCs manually. Undo restores the previous lines.
+- **Revert to original** restores the automatic lines and count, resets B&C, and restores the preserved first annotated TIFF when saved. New runs preserve it in `original_annotations/`. Older sessions without that backup restore automatic line coordinates on the original preview.
+- **Finish / export** saves the current image and opens any remaining unreviewed image. Once every image is reviewed, the app automatically writes `RBC_Final_Results.xlsx` and `RBC_Final_Results.csv` in the run folder.
+
+Final exports contain automatic count, net lines added, net lines removed, final RBC count, frame period, and corrected flux for each image. Final count = automatic count + added − removed. Final flux = final count / frame period in seconds. Later saved edits refresh the final files; incomplete saved reviews remove stale final files and retain the working results.
+
+
+The Excel **Results** sheet follows the Ag8 workbook's core columns: Line scan #, # of lines, pixels/line, line scan period (s), total time (s), # of RBCs, and # RBCs/s. Headers are on row 2; flux cells contain Excel formulas such as `F3/E3`, with calculated values already cached. The **Review Details** sheet contains filenames and the automatic counts, net additions/removals, final counts, frame periods, and flux. The CSV retains this detailed edit table.

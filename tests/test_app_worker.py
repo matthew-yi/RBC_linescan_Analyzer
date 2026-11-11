@@ -6,10 +6,26 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from rbc_app import App
+from rbc_app import App, completed_image_count
 
 
 class ProgressTests(unittest.TestCase):
+    def test_external_drive_sidecars_do_not_inflate_progress(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            folder = output / 'detections'
+            folder.mkdir()
+            for index in range(84):
+                (folder / f'{index}.txt').write_text('45\nOK\n10\n')
+            for index in range(8):
+                (folder / f'._{index}.txt').write_bytes(b'Mac resource fork')
+            self.assertEqual(len(list(folder.glob('*.txt'))), 92)
+            self.assertEqual(completed_image_count(output, 84), 84)
+            (folder / '83.txt').unlink()
+            (folder / '84.txt').write_text('unrelated file')
+            (folder / 'notes.txt').write_text('unrelated file')
+            self.assertEqual(completed_image_count(output, 84), 83)
+
     def test_completed_images_and_export(self):
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp)

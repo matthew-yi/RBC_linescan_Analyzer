@@ -2,13 +2,76 @@ import csv
 import json
 import tempfile
 import unittest
+import zipfile
+import xml.etree.ElementTree as ET
+from PIL import Image
 from pathlib import Path
 from collect_linescans_updated import collect_linescans
-from rbc_workflow import prepare, build_macro, import_detections, result_row, save_session
+from rbc_workflow import prepare, build_macro, import_detections, result_row, save_session, final_rows, export_final_results
 
 XML = '''<PVScan><PVStateShard><PVStateValue key="micronsPerPixel"><IndexedValue index="XAxis" value="0.5"/></PVStateValue></PVStateShard><Sequence cycle="1"><Frame index="1"><PVStateShard><PVStateValue key="scanLinePeriod" value="0.001"/><PVStateValue key="framePeriod" value="2"/></PVStateShard></Frame><Frame index="2"><PVStateShard><PVStateValue key="scanLinePeriod" value="0.002"/><PVStateValue key="framePeriod" value="4"/></PVStateShard></Frame></Sequence></PVScan>'''
 
 class WorkflowTests(unittest.TestCase):
+    def test_final_corrected_excel_and_review_gate(self):
+        records = [dict(image='2_scan.tif', peaks=[10, 40, 50], automatic_peaks=[10, 20, 30],
+                        meta=[1.5, -1, -1, -1], angle=0, reviewed=True),
+                   dict(image='1_scan.tif', peaks=[], automatic_peaks=[10, 20],
+                        meta=[2, -1, -1, -1], angle=0, reviewed=False)]
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            (output/'previews').mkdir()
+            Image.new('L', (83, 3000)).save(output/'previews/0.png')
+            Image.new('L', (75, 2000)).save(output/'previews/1.png')
+            with self.assertRaisesRegex(ValueError, 'Review every image'):
+                export_final_results(records, output)
+            records[1]['reviewed'] = True
+            save_session(records, output)
+            rows = final_rows(records)
+            self.assertEqual(rows[0]['Final RBC Count'], 0)
+            self.assertEqual(rows[0]['Lines Removed'], 2)
+            self.assertEqual(rows[0]['Final Flux (RBCs/s)'], 0)
+            self.assertEqual(rows[1]['Lines Added'], 2)
+            self.assertEqual(rows[1]['Lines Removed'], 2)
+            self.assertEqual(rows[1]['Final Flux (RBCs/s)'], 2)
+            with (output/'RBC_Final_Results.csv').open() as handle:
+                exported = list(csv.DictReader(handle))
+                self.assertEqual(exported[1]['Final RBC Count'], '3')
+            with zipfile.ZipFile(output/'RBC_Final_Results.xlsx') as archive:
+                self.assertIsNone(archive.testzip())
+                for name in archive.namelist():
+                    ET.fromstring(archive.read(name))
+                ns = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+                sheet = ET.fromstring(archive.read('xl/worksheets/sheet2.xml'))
+                cells = {c.get('r'): c for c in sheet.findall('.//s:c', ns)}
+                self.assertEqual(cells['E2'].find('s:v', ns).text, '0')
+                self.assertEqual(cells['G3'].find('s:v', ns).text, '2.0')
+                results = ET.fromstring(archive.read('xl/worksheets/sheet1.xml'))
+                cells = {c.get('r'): c for c in results.findall('.//s:c', ns)}
+                self.assertEqual(cells['F3'].find('s:v', ns).text, '0')
+                self.assertEqual(cells['B3'].find('s:v', ns).text, '2000')
+                self.assertEqual(cells['C3'].find('s:v', ns).text, '75')
+                self.assertEqual(cells['E4'].find('s:v', ns).text, '1.5')
+                self.assertEqual(cells['G4'].find('s:f', ns).text, 'F4/E4')
+                self.assertEqual(cells['G4'].find('s:v', ns).text, '2.0')
+            records[0]['reviewed'] = False
+            save_session(records, output)
+            self.assertFalse((output/'RBC_Final_Results.xlsx').exists())
+            self.assertFalse((output/'RBC_Final_Results.csv').exists())
+
+    def test_first_annotation_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            (output/'detections').mkdir()
+            (output/'RBC_Annotated').mkdir()
+            (output/'detections/0.txt').write_text('45\nOK\n10\n')
+            annotation = output/'RBC_Annotated/scan.tif_annotated.tif'
+            annotation.write_bytes(b'first annotation')
+            record = dict(image='scan.tif', meta=[1, -1, -1, -1], reviewed=False)
+            import_detections([record], output)
+            annotation.write_bytes(b'edited annotation')
+            import_detections([record], output)
+            self.assertEqual((output/'original_annotations'/annotation.name).read_bytes(), b'first annotation')
+
     def test_original_collector_default_output(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / 'original'

@@ -1,11 +1,14 @@
 """Shared collection, Fiji bridge, and review persistence for the desktop app."""
 from __future__ import annotations
 import csv
+from collections import Counter
 import hashlib
 import json
 import math
 import re
 import shutil
+import zipfile
+from xml.sax.saxutils import escape
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from collect_linescans_updated import collect_linescans
@@ -140,10 +143,16 @@ def build_macro(records, output: Path, fallback: float):
 
 
 def import_detections(records, output):
+    originals = output / 'original_annotations'
+    originals.mkdir(exist_ok=True)
     for n, rec in enumerate(records):
         lines = (output / 'detections' / f'{n}.txt').read_text().splitlines()
         rec.update(angle=float(lines[0]), qc=lines[1], peaks=[float(x) for x in lines[2:]])
         rec['automatic_peaks'] = rec['peaks'].copy()
+        annotation = output / 'RBC_Annotated' / (rec['image'] + '_annotated.tif')
+        original = originals / annotation.name
+        if annotation.exists() and not original.exists():
+            shutil.copyfile(annotation, original)
     save_session(records, output)
 
 
@@ -173,3 +182,107 @@ def save_session(records, output):
             writer.writeheader()
             writer.writerows({k: 'N/A' if v is None else v for k,v in row.items()} for row in rows)
         temp.replace(path)
+    if all(rec['reviewed'] for rec in records):
+        export_final_results(records, output)
+    else:
+        for name in ('RBC_Final_Results.csv', 'RBC_Final_Results.xlsx'):
+            (output / name).unlink(missing_ok=True)
+
+
+def final_rows(records):
+    rows = []
+    for rec in sorted(records, key=lambda r: natural_key(r['image'])):
+        original, final = Counter(rec['automatic_peaks']), Counter(rec['peaks'])
+        duration = rec['meta'][0]
+        rows.append({'Image': rec['image'], 'Automatic Count': sum(original.values()),
+                     'Lines Added': sum((final-original).values()),
+                     'Lines Removed': sum((original-final).values()),
+                     'Final RBC Count': sum(final.values()), 'Frame Period (s)': duration,
+                     'Final Flux (RBCs/s)': sum(final.values())/duration if duration > 0 else None,
+                     'Reviewed': rec['reviewed']})
+    return rows
+
+
+def export_final_results(records, output):
+    """Write final counts and timing as CSV and a native Excel workbook."""
+    if not records or not all(r['reviewed'] for r in records):
+        raise ValueError('Review every image before exporting final results.')
+    rows = final_rows(records)
+    csv_path = output / 'RBC_Final_Results.csv'
+    temp = csv_path.with_suffix('.tmp')
+    with temp.open('w', newline='') as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows({k: 'N/A' if v is None else v for k,v in row.items()} for row in rows)
+    temp.replace(csv_path)
+    ordered = sorted(records, key=lambda r: natural_key(r['image']))
+    headers = ['Line scan #', '# of lines', 'pixels/line', 'line scan period (s)',
+               'total time (s)', '# of RBCs', '# RBCs/s']
+    table = [[], headers]
+    preview_indices = {id(rec): i for i, rec in enumerate(records)}
+    for index, rec in enumerate(ordered, 1):
+        match = re.search(r'(?:^|_)(\d+)_LineScan-', rec['image'])
+        scan = int(match.group(1)) if match else index
+        width = height = None
+        preview_index = preview_indices[id(rec)]
+        preview = output / 'previews' / f'{preview_index}.png'
+        if preview.exists():
+            from PIL import Image
+            with Image.open(preview) as image:
+                width, height = image.size
+        duration, line_period = rec['meta'][:2]
+        count = len(rec['peaks'])
+        number = index + 2
+        flux = ('formula', f'F{number}/E{number}', count/duration) if duration > 0 else None
+        table.append([scan, height, width, line_period if line_period > 0 else None,
+                      duration if duration > 0 else None, count, flux])
+    sheets = [('Results', table, 2),
+              ('Review Details', [list(rows[0])] + [list(row.values()) for row in rows], 1)]
+    path = output / 'RBC_Final_Results.xlsx'
+    _write_workbook(path, sheets)
+    return path
+
+
+def _write_workbook(path, sheets):
+    """Write numeric cells, cached formulas, and an audit sheet without extra dependencies."""
+    ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+    rel_ns = 'http://schemas.openxmlformats.org/package/2006/relationships'
+    rel_type = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/'
+    definitions, relationships, overrides = [], [], []
+    temp = path.with_suffix('.tmp')
+    with zipfile.ZipFile(temp, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for sheet_index, (name, table, header_row) in enumerate(sheets, 1):
+            xml_rows = []
+            columns = max(len(row) for row in table)
+            for number, values in enumerate(table, 1):
+                cells = []
+                for column, value in enumerate(values):
+                    address = f'{chr(65+column)}{number}'
+                    if isinstance(value, tuple) and value[0] == 'formula':
+                        cells.append(f'<c r="{address}"><f>{escape(value[1])}</f><v>{value[2]}</v></c>')
+                    elif isinstance(value, bool):
+                        cells.append(f'<c r="{address}" t="b"><v>{int(value)}</v></c>')
+                    elif isinstance(value, (int, float)) and math.isfinite(value):
+                        cells.append(f'<c r="{address}"><v>{value}</v></c>')
+                    else:
+                        text = escape('N/A' if value is None else str(value))
+                        cells.append(f'<c r="{address}" t="inlineStr"><is><t>{text}</t></is></c>')
+                xml_rows.append(f'<row r="{number}">'+''.join(cells)+'</row>')
+            first_width = 65 if name == 'Review Details' else 25
+            worksheet = (f'<worksheet xmlns="{ns}"><sheetViews><sheetView workbookViewId="0">'
+                         f'<pane ySplit="{header_row}" topLeftCell="A{header_row+1}" activePane="bottomLeft" state="frozen"/>'
+                         f'</sheetView></sheetViews><cols><col min="1" max="1" width="{first_width}" customWidth="1"/>'
+                         f'<col min="2" max="{columns}" width="23" customWidth="1"/></cols><sheetData>'
+                         + ''.join(xml_rows) + f'</sheetData><autoFilter ref="A{header_row}:{chr(64+columns)}{len(table)}"/></worksheet>')
+            target = f'worksheets/sheet{sheet_index}.xml'
+            archive.writestr('xl/'+target, worksheet)
+            definitions.append(f'<sheet name="{name}" sheetId="{sheet_index}" r:id="rId{sheet_index}"/>')
+            relationships.append(f'<Relationship Id="rId{sheet_index}" Type="{rel_type}worksheet" Target="{target}"/>')
+            overrides.append(f'<Override PartName="/xl/{target}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>')
+        contents = ('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                    + ''.join(overrides) + '</Types>')
+        archive.writestr('[Content_Types].xml', contents)
+        archive.writestr('_rels/.rels', f'<Relationships xmlns="{rel_ns}"><Relationship Id="rId1" Type="{rel_type}officeDocument" Target="xl/workbook.xml"/></Relationships>')
+        archive.writestr('xl/workbook.xml', f'<workbook xmlns="{ns}" xmlns:r="{rel_type[:-1]}"><sheets>'+''.join(definitions)+'</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>')
+        archive.writestr('xl/_rels/workbook.xml.rels', f'<Relationships xmlns="{rel_ns}">'+''.join(relationships)+'</Relationships>')
+    temp.replace(path)
