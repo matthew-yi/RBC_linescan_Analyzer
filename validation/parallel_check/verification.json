@@ -1,0 +1,37 @@
+{
+  "workers": 2,
+  "images": 4,
+  "identical_line_positions_angles_metadata": 4,
+  "identical_annotation_images": 4,
+  "elapsed_seconds": 54.27,
+  "progress": [
+    [
+      0,
+      4
+    ],
+    [
+      0,
+      4
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      4,
+      4
+    ]
+  ]
+}

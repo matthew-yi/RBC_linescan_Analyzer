@@ -35,6 +35,7 @@ On macOS you can also double-click **Launch RBC Analyzer.command** after install
 
 1. Choose the original experiment folder containing your numbered linescan subfolders. For the Ag8 sample, select `Ag8 Baseline/L4 Line scans Baseline`. The app calls `collect_linescans_updated.py` to create numbered image, XML, and Ch3Source copies, then automatically reads the collected images and XML. An existing `collected_ome_tif` folder is also accepted.
 2. Enter a fallback scan duration in seconds. It is used only when a positive frame duration cannot be extracted from XML.
+   Set **Simultaneous images** to the number of Fiji workers (1–8, default 2 on computers with multiple CPUs). Two workers analyze two scans at a time; use 1 for sequential processing or a higher value when CPU and memory permit. Each scan is assigned to exactly one worker, and the editor retains the original scan order.
 3. Click **Run entire folder** in the analyzer window. Collection, frame timing extraction, Fiji batch analysis, and numeric result sorting run automatically. The progress bar animates during collection, then shows completed images and percentage during Fiji analysis. A separate linescan editor opens after the entire batch completes.
 4. Use the editor's side toolbar to choose **Add / remove RBC lines** or **Pan image**. In Add / remove mode, left-click adds a line and right-click (or Control-click on macOS) removes the nearest line within 12 screen pixels. Hold Space to temporarily pan; release it to return to the selected mode. Press `+` or `−` to zoom (`=` and numeric keypad +/− also work). The image initially fits the viewport width, with vertical scrolling for long scans. Use the mouse wheel to scroll, Ctrl + wheel to zoom, or drag with the Pan tool. Fit width, Fit entire image, 100%, line visibility, undo, and reset to automatic lines are available. Count, frame period, and flux are displayed beside the image.
 5. **Save / Next** saves the corrected annotation and measurements, then advances to the next image. Previous also saves. Closing saves the current image. **Resume saved review** opens the run's `session.json` and resumes at the first unreviewed image.
@@ -61,7 +62,7 @@ Each output folder contains:
 - `session.json`: editable line coordinates, metadata, and review state.
 - `analysis_input`: TIFF copies with plain filenames for Fiji’s native headless TIFF reader.
 - `previews`, `detections`: grayscale display images and original automatic detections. Keep these with the session to resume review.
-- `run_analysis.ijm`, `fiji.log`: generated Fiji batch macro and diagnostic output.
+- `run_analysis.ijm`, `fiji.log`: generated macro and log for sequential analysis. Parallel runs use `run_analysis_worker_N.ijm` and `fiji_worker_N.log`; `fiji.log` lists the worker assignments. Progress combines only the expected numbered detection files. If a worker fails, the other workers stop and the app reports the relevant log.
 
 ## Measurement behavior
 

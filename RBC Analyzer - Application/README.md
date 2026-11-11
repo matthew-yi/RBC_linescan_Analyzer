@@ -1,47 +1,77 @@
 # RBC Linescan Analyzer
 
-This folder contains the application only. Copy this whole folder to your computer.
+Lab sharing edition • November 11, 2026
 
-## First-time setup
+Extract the ZIP and keep this entire folder together on your computer. Run setup once on each computer before launching. No experimental images, results, or computer-specific Python environment are included.
 
-1. Install Python 3.10 or newer with Tkinter/Tk support.
-2. Double-click **First Time Setup.command** on Mac or **First Time Setup.bat** on Windows. Internet access is required to install Pillow. Setup creates a Python environment for this computer; do not copy an environment from another computer.
-3. Install Fiji from https://fiji.sc/ if it is not already installed. Setup checks common locations but does not install Python or Fiji automatically.
+## 1. Install prerequisites
 
-## Launch and analyze
+- **Python 3.10 or newer, with Tkinter/Tk:** https://www.python.org/downloads/
+- **Fiji:** https://fiji.sc/
 
-Double-click **Launch RBC Analyzer.command** on Mac or **Launch RBC Analyzer.bat** on Windows. Use Browse to select the Fiji executable on your computer.
+Python and Fiji are installed separately. The setup program installs Pillow and checks the application's Python imports; it needs internet access.
 
-Choose the original experiment folder containing the numbered scan subfolders, then click **Run entire folder**. The app automatically collects images and XML, reads frame periods, counts RBCs in Fiji, and calculates flux as count divided by frame period in seconds. A progress bar tracks completed images.
+## 2. Run first-time setup
 
-Results go into a separate folder beside your experiment, named `<experiment> - RBC Analysis - <date and time>`.
+| Computer | Double-click |
+| --- | --- |
+| Mac | `First Time Setup.command` |
+| Windows | `First Time Setup.bat` |
 
-## Review
+Wait for **Python setup complete**. Setup creates a local `.venv` for your computer. If setup is rerun, it backs up the old environment and restores it if installation fails.
 
-The separate linescan editor opens after analysis. Use **Add / remove RBC lines** for left-click to add and right-click to remove, or choose **Pan image** to drag. Hold **Space** to temporarily pan and release to return to the selected mode. Press **+** or **−** to zoom; **=** and the numeric keypad also work. Side tools provide undo, save, and navigation. The mouse wheel scrolls from anywhere in the editor; Ctrl + wheel zooms. Counts, frame periods, and flux appear beside the image.
+## 3. Launch and analyze
 
-**Save / Next**, Previous, and closing the editor save your review. Closing the editor leaves the analyzer open; use **Open editor** to return. To continue a previous run, choose **Resume saved review** and select its `session.json`.
+| Computer | Double-click |
+| --- | --- |
+| Mac | `Launch RBC Analyzer.command` |
+| Windows | `Launch RBC Analyzer.bat` |
 
-## Terminal alternatives
+1. Choose the **original experiment folder** containing the numbered scan subfolders. The app collects the OME images and XML automatically.
+2. Select your **Fiji executable** using Browse. On Mac it is typically `/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx`; on Windows, select `ImageJ-win64.exe` inside Fiji.
+3. Leave **Simultaneous images** at **2** initially. You can choose 1–8 workers; higher values use more CPU and memory. Choose 1 for sequential processing.
+4. Set the **Fallback duration** in seconds. It is used only when a frame period cannot be read from XML.
+5. Click **Run entire folder**. The progress bar counts completed images across all workers. The editor opens when the batch finishes.
 
-Mac/Linux setup: `python3 app/install_rbc.py`
+Inputs must be individual 2D grayscale Ch3 linescans, with position across columns and time down rows. The expected raw filename pattern is `LineScan-*_Cycle*_Ch3_*.ome.tif`, with matching XML beside the raw images. An existing `collected_ome_tif` folder is also accepted when its XML is available in the neighboring `collected_xml` folder.
 
-Windows setup: `py -3 app\install_rbc.py`
+Results are saved beside the experiment in `<experiment> - RBC Analysis - <date and time>`. Raw inputs are preserved. Each image is analyzed once; review and exports retain scan order.
 
-Mac/Linux launch after setup: `.venv/bin/python app/rbc_app.py`
+## 4. Review the lines
 
-Windows launch after setup: `.venv\Scripts\python.exe app\rbc_app.py`
+| Action | Control |
+| --- | --- |
+| Add a line | Left-click in Add / remove mode |
+| Remove a line | Right-click; Control-click also works on Mac |
+| Pan | Select Pan image and drag, or hold Space while dragging |
+| Zoom | + / − keys, zoom buttons, or Ctrl + mouse wheel |
+| Scroll | Mouse wheel anywhere in the editor |
+| Save / Undo | Ctrl+S / Ctrl+Z; Command+S / Command+Z on Mac |
 
-Only Pillow is installed through pip. Tkinter comes with the Python installation, and Fiji is installed separately.
+- **Brightness / Contrast** changes only the display. **Reset B&C** restores it.
+- **Clear, edit manually** removes all lines and starts the count at zero. Click each RBC streak to count manually. Undo can restore the cleared lines.
+- **Revert to original** restores the automatic lines/count and resets B&C. New runs preserve the first automatic TIFF for exact restoration when saved.
+- **Save / Next**, Previous, Save, and closing the editor save the current review. Closing the editor leaves the analyzer open; **Open editor** brings it back.
+- **Resume saved review** opens an existing run's `session.json`. Keep the entire run folder together.
 
-## Contrast, manual counting, and final spreadsheets
+## 5. Finish and get results
 
-- **Brightness / Contrast** sliders change only the display. **Reset B&C** restores it. Counts and source image pixels are unchanged.
-- **Clear, edit manually** clears all lines and sets the count to zero. Click each streak to add RBCs manually. Undo restores the previous lines.
-- **Revert to original** restores the automatic lines and count, resets B&C, and restores the preserved first annotated TIFF when saved. New runs preserve it in `original_annotations/`. Older sessions without that backup restore automatic line coordinates on the original preview.
-- **Finish / export** saves the current image and opens any remaining unreviewed image. Once every image is reviewed, the app automatically writes `RBC_Final_Results.xlsx` and `RBC_Final_Results.csv` in the run folder.
+Click **Finish / export**, or Save / Next on the last image. If any image remains unreviewed, the app opens it. Once every image is reviewed, the app writes:
 
-Final exports contain automatic count, net lines added, net lines removed, final RBC count, frame period, and corrected flux for each image. Final count = automatic count + added − removed. Final flux = final count / frame period in seconds. Later saved edits refresh the final files; incomplete saved reviews remove stale final files and retain the working results.
+- **`RBC_Final_Results.xlsx`**: the Results sheet contains scan number, image dimensions, scan-line period, total frame time, final RBC count, and flux. Review Details contains filenames, automatic counts, net additions/removals, and final measurements.
+- **`RBC_Final_Results.csv`**: the detailed final count/edit table.
 
+**Final count = automatic count + lines added − lines removed.**
 
-The Excel **Results** sheet follows the Ag8 workbook's core columns: Line scan #, # of lines, pixels/line, line scan period (s), total time (s), # of RBCs, and # RBCs/s. Headers are on row 2; flux cells contain Excel formulas such as `F3/E3`, with calculated values already cached. The **Review Details** sheet contains filenames and the automatic counts, net additions/removals, final counts, frame periods, and flux. The CSV retains this detailed edit table.
+**Flux (RBCs/s) = final count ÷ frame period in seconds.**
+
+The exported flux is already corrected for frame period; do not divide it again. Working CSVs and corrected TIFFs are saved throughout review. Later saved edits refresh final exports; an incomplete saved review removes stale final exports.
+
+## Troubleshooting
+
+- **Setup fails:** read the message in the setup window. Check Python/Tk installation and internet access.
+- **App will not open:** run First Time Setup on this computer. To see the error, open a terminal in this folder and run `.venv/bin/python app/rbc_app.py` on Mac, or `.venv\Scripts\python.exe app\rbc_app.py` on Windows.
+- **Analysis fails:** check `fiji.log` in the run folder. Parallel runs also have `fiji_worker_N.log`; the error identifies the relevant log. A failed worker stops the other workers.
+- **Computer slows down:** lower Simultaneous images. More workers do not always finish sooner.
+
+The `app/` folder and `requirements.txt` support the launchers and should stay in place.

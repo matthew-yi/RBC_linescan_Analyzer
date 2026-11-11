@@ -1,0 +1,5 @@
+File	SequenceType	Cycle	FrameIndex	scanLinePeriod	framePeriod	FullPath
+1_LineScan-04102026-1255-8529.xml	Linescan	1	1	0.000488	1.464	/Users/matthewyi/Documents/RBC Linescan Analyzer/validation/parallel_check/run/collected_xml/1_LineScan-04102026-1255-8529.xml
+2_LineScan-04102026-1255-8530.xml	Linescan	1	1	0.0004356	1.3068	/Users/matthewyi/Documents/RBC Linescan Analyzer/validation/parallel_check/run/collected_xml/2_LineScan-04102026-1255-8530.xml
+9_LineScan-04102026-1255-8541.xml	Linescan	1	1	0.000447	1.341	/Users/matthewyi/Documents/RBC Linescan Analyzer/validation/parallel_check/run/collected_xml/9_LineScan-04102026-1255-8541.xml
+13_LineScan-04102026-1255-8545.xml	Linescan	1	1	0.0003752	1.1256	/Users/matthewyi/Documents/RBC Linescan Analyzer/validation/parallel_check/run/collected_xml/13_LineScan-04102026-1255-8545.xml

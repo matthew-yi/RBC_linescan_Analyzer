@@ -2,6 +2,7 @@
 """Launch with python3 rbc_app.py."""
 import json
 import math
+import os
 import queue
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ import sys
 import threading
 import tkinter as tk
 from datetime import datetime
+from contextlib import ExitStack
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from rbc_workflow import prepare, build_macro, import_detections, save_session
@@ -47,11 +49,13 @@ class App:
         self.index = 0
         self.busy = False
         self.process = None
+        self.processes = []
         self.undo = []
         self.scale = 1.0
         self.source = tk.StringVar()
         self.fiji = tk.StringVar(value='/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx')
         self.duration = tk.StringVar(value='1.0')
+        self.workers = tk.IntVar(value=min(2, os.cpu_count() or 1))
         form = ttk.Frame(root, padding=10)
         form.pack(fill='x')
         for row, (label, variable, command) in enumerate((('Original scan folder', self.source, self.choose_source), ('Fiji executable', self.fiji, self.choose_fiji))):
@@ -61,6 +65,9 @@ class App:
         form.columnconfigure(1, weight=1)
         ttk.Label(form, text='Fallback duration (seconds)').grid(row=2, column=0, sticky='w')
         ttk.Entry(form, textvariable=self.duration, width=12).grid(row=2, column=1, sticky='w')
+        ttk.Label(form, text='Simultaneous images').grid(row=3, column=0, sticky='w')
+        self.worker_control = ttk.Spinbox(form, from_=1, to=8, textvariable=self.workers, width=10)
+        self.worker_control.grid(row=3, column=1, sticky='w')
         actions = ttk.Frame(root, padding=(10,0))
         actions.pack(fill='x')
         self.run_button = ttk.Button(actions, text='Run entire folder', command=self.run)
@@ -261,6 +268,7 @@ class App:
 
     def set_busy(self, busy):
         self.busy = busy
+        self.worker_control.configure(state='disabled' if busy else 'normal')
         for button in (self.run_button, self.resume_button):
             button.configure(state='disabled' if busy else 'normal')
         self.open_editor_button.configure(state='normal' if self.records and not busy else 'disabled')
@@ -275,6 +283,9 @@ class App:
             source = Path(self.source.get()).expanduser().resolve()
             executable = Path(self.fiji.get()).expanduser()
             duration = float(self.duration.get())
+            workers = self.workers.get()
+            if not 1 <= workers <= 8:
+                raise ValueError('Simultaneous images must be between 1 and 8.')
             if not source.is_dir() or not self.source.get():
                 raise ValueError('Choose an existing source folder.')
             if not executable.is_file():
@@ -282,7 +293,7 @@ class App:
             if not math.isfinite(duration) or duration <= 0:
                 raise ValueError('Fallback duration must be a positive number.')
             output = create_run_folder(source)
-        except (ValueError, ImportError, OSError) as exc:
+        except (ValueError, ImportError, OSError, tk.TclError) as exc:
             messagebox.showerror('Cannot start', str(exc)+'\nInstall dependencies with: python3 -m pip install -r requirements.txt')
             return
         # Every run is isolated, preserving previous analyses and source files.
@@ -291,37 +302,73 @@ class App:
         self.progress.configure(mode='indeterminate')
         self.progress.start(15)
         self.progress_text.set('Collecting input files…')
-        threading.Thread(target=self.worker, args=(source, output, executable, duration), daemon=True).start()
+        threading.Thread(target=self.worker, args=(source, output, executable, duration, workers), daemon=True).start()
 
-    def worker(self, source, output, executable, duration):
+    def worker(self, source, output, executable, duration, workers=1):
+        processes = []
         try:
             records = prepare(source, output, lambda line:self.events.put(('log', line)))
-            macro = output / 'run_analysis.ijm'
-            macro.write_text(build_macro(records, output, duration))
-            self.events.put(('log', f'Analyzing {len(records)} images. Output: {output}'))
-            self.events.put(('status', 'Fiji is analyzing the folder. The editor opens when the batch finishes.'))
+            if not records:
+                raise ValueError('No images to analyze.')
+            workers = min(max(1, workers), len(records))
+            self.events.put(('log', f'Analyzing {len(records)} images with {workers} Fiji worker(s). Output: {output}'))
+            self.events.put(('status', f'Analyzing up to {workers} images simultaneously. The editor opens when the batch finishes.'))
             self.events.put(('progress', (0, len(records))))
-            with (output / 'fiji.log').open('w') as log:
-                self.process = subprocess.Popen([str(executable), '--headless', '--console', '-macro', str(macro)], stdout=log, stderr=subprocess.STDOUT)
+            with ExitStack() as stack:
+                summary = stack.enter_context((output / 'fiji.log').open('w'))
+                jobs = []
+                for worker in range(workers):
+                    indices = list(range(worker, len(records), workers))
+                    macro = output / ('run_analysis.ijm' if workers == 1 else f'run_analysis_worker_{worker+1}.ijm')
+                    marker = 'complete.txt' if workers == 1 else f'worker_{worker+1}_complete.txt'
+                    if workers == 1:
+                        macro.write_text(build_macro(records, output, duration))
+                        log = summary
+                    else:
+                        macro.write_text(build_macro(records, output, duration, indices=indices, completion_name=marker))
+                        log = stack.enter_context((output / f'fiji_worker_{worker+1}.log').open('w'))
+                        summary.write(f'Worker {worker+1}: {len(indices)} images; log: {log.name}\n')
+                        summary.flush()
+                    process = subprocess.Popen([str(executable), '--headless', '--console', '-macro', str(macro)], stdout=log, stderr=subprocess.STDOUT)
+                    processes.append(process)
+                    jobs.append((process, output / marker, log.name))
+                self.processes = processes
+                self.process = processes[0]
                 completed = -1
-                while True:
+                while jobs:
                     count = completed_image_count(output, len(records))
                     if count != completed:
                         completed = count
                         self.events.put(('progress', (count, len(records))))
-                    try:
-                        code = self.process.wait(timeout=0.3)
-                        break
-                    except subprocess.TimeoutExpired:
-                        pass
-            self.process = None
-            if code or not (output / 'complete.txt').exists():
-                raise RuntimeError(f'Fiji did not complete (exit {code}). See {output / "fiji.log"}.')
+                    for job in jobs[:]:
+                        process, marker, log_name = job
+                        try:
+                            code = process.wait(timeout=0.1)
+                        except subprocess.TimeoutExpired:
+                            continue
+                        if code or not marker.exists():
+                            raise RuntimeError(f'Fiji worker did not complete (exit {code}). See {log_name}.')
+                        jobs.remove(job)
+                if completed_image_count(output, len(records)) != len(records):
+                    raise RuntimeError('Fiji finished without all expected image results. See the worker logs.')
+                (output / 'complete.txt').write_text('complete')
+            self.events.put(('progress', (len(records), len(records))))
             self.events.put(('status', 'Saving measurements and review session…'))
             import_detections(records, output)
             self.events.put(('done', (records, output)))
         except Exception as exc:
+            for process in processes:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
             self.events.put(('error', str(exc)))
+        finally:
+            self.process = None
+            self.processes = []
 
     def poll(self):
         try:

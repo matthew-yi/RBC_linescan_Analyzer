@@ -111,12 +111,13 @@ def ij_string(value):
     return json.dumps(str(value), ensure_ascii=False)
 
 
-def build_macro(records, output: Path, fallback: float):
+def build_macro(records, output: Path, fallback: float, indices=None, completion_name='complete.txt'):
     original = Path(__file__).with_name('RBC_Linescan_Analyzer2.0.ijm').read_text()
     start = original.index('macro "RBC Linescan Analyzer2.0"')
     end = original.index('// ── SINGLE MODE', start)
     commands = ['setBatchMode(true);']
-    for n, rec in enumerate(records):
+    for n in range(len(records)) if indices is None else indices:
+        rec = records[n]
         image = output / 'analysis_input' / f'{n}.tif'
         stem = str(n)
         commands.extend([
@@ -137,7 +138,7 @@ def build_macro(records, output: Path, fallback: float):
             rec['duration_source'] = 'manual fallback'
         else:
             rec['duration_source'] = 'frame metadata'
-    commands.extend([f'File.saveString("complete", {ij_string(output / "complete.txt")});', 'setBatchMode(false);'])
+    commands.extend([f'File.saveString("complete", {ij_string(output / completion_name)});', 'setBatchMode(false);'])
     original = original.replace('showMessage("Image is blank."); return 0;', 'lastQCString="BLANK IMAGE"; return 0;')
     return original[:start] + '\n'.join(commands) + '\n' + original[end:]
 
