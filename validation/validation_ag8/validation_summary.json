@@ -1,0 +1,14 @@
+{
+  "reference_images": 84,
+  "analyzed_images": 84,
+  "unique_images": 84,
+  "matching_counts": 84,
+  "matching_frame_periods": 84,
+  "matching_corrected_flux": 84,
+  "identical_annotations": 84,
+  "baseline_total_count": 10436,
+  "app_total_count": 10436,
+  "frame_period_min_s": 1.11,
+  "frame_period_max_s": 1.5912,
+  "fallback_durations": 0
+}

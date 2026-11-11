@@ -1,0 +1,214 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PVScan version="5.5.64.500" date="10/5/2026 11:39:44 AM" notes="">
+  <SystemIDs SystemID="9CB6-79B3-D279-BC44-6D70-1A61-8653-8F59">
+    <SystemID SystemID="4799" Description="Seattle, Andy Shih" />
+  </SystemIDs>
+  <PVStateShard>
+    <PVStateValue key="activeMode" value="Galvo" />
+    <PVStateValue key="bitDepth" value="13" />
+    <PVStateValue key="currentScanAmplitude">
+      <IndexedValue index="XAxis" value="-7.6" />
+      <IndexedValue index="YAxis" value="7.6" />
+    </PVStateValue>
+    <PVStateValue key="currentScanCenter">
+      <IndexedValue index="XAxis" value="0" />
+      <IndexedValue index="YAxis" value="0" />
+    </PVStateValue>
+    <PVStateValue key="dwellTime" value="3.6" />
+    <PVStateValue key="framePeriod" value="1.1261376" />
+    <PVStateValue key="interlacedScanTrackCount" value="0" />
+    <PVStateValue key="laserPower">
+      <IndexedValue index="0" value="389.6484375" description="Tunable" />
+      <IndexedValue index="1" value="0" description="Fixed (1040nm)" />
+    </PVStateValue>
+    <PVStateValue key="laserWavelength">
+      <IndexedValue index="0" value="1210" description="InSight" />
+    </PVStateValue>
+    <PVStateValue key="linesPerFrame" value="512" />
+    <PVStateValue key="maxVoltage">
+      <IndexedValue index="XAxis" value="-3.10268700743732" />
+      <IndexedValue index="YAxis" value="1.79133717915842" />
+    </PVStateValue>
+    <PVStateValue key="micronsPerPixel">
+      <IndexedValue index="XAxis" value="0.384004212209471" />
+      <IndexedValue index="YAxis" value="0.384004212209471" />
+      <IndexedValue index="ZAxis" value="1" />
+    </PVStateValue>
+    <PVStateValue key="minVoltage">
+      <IndexedValue index="XAxis" value="3.10268700743732" />
+      <IndexedValue index="YAxis" value="-1.79133717915842" />
+    </PVStateValue>
+    <PVStateValue key="objectiveLens" value="Olympus 20x" />
+    <PVStateValue key="objectiveLensMag" value="20" />
+    <PVStateValue key="objectiveLensNA" value="1" />
+    <PVStateValue key="opticalZoom" value="3" />
+    <PVStateValue key="pixelsPerLine" value="512" />
+    <PVStateValue key="pmtGain">
+      <IndexedValue index="0" value="0" description="Green" />
+      <IndexedValue index="1" value="0" description="Red" />
+      <IndexedValue index="2" value="700" description="FarRed" />
+      <IndexedValue index="3" value="0" description="Blue" />
+    </PVStateValue>
+    <PVStateValue key="positionCurrent">
+      <SubindexedValues index="XAxis">
+        <SubindexedValue subindex="0" value="-50.816" />
+      </SubindexedValues>
+      <SubindexedValues index="YAxis">
+        <SubindexedValue subindex="0" value="-347.137" />
+      </SubindexedValues>
+      <SubindexedValues index="ZAxis">
+        <SubindexedValue subindex="0" value="447.75" />
+      </SubindexedValues>
+    </PVStateValue>
+    <PVStateValue key="preampFilter" value="Filter2500KHz" description="2.50 MHz" />
+    <PVStateValue key="preampOffset">
+      <SubindexedValues index="0">
+        <SubindexedValue subindex="0" value="0" description="Ch1" />
+        <SubindexedValue subindex="1" value="-0.03" description="Ch2" />
+        <SubindexedValue subindex="2" value="-0.0119047621" description="Ch3" />
+        <SubindexedValue subindex="3" value="-0.0009803922" description="Ch4" />
+      </SubindexedValues>
+    </PVStateValue>
+    <PVStateValue key="rastersPerFrame" value="1" />
+    <PVStateValue key="rotation" value="15" />
+    <PVStateValue key="samplesPerPixel" value="18" />
+    <PVStateValue key="scanLinePeriod" value="0.0021952" />
+    <PVStateValue key="twophotonLaserDispersion">
+      <IndexedValue index="0" value="76.2" description="DeepSee" />
+    </PVStateValue>
+    <PVStateValue key="twophotonLaserPower">
+      <IndexedValue index="0" value="1750" />
+    </PVStateValue>
+    <PVStateValue key="useInterlacedScanPattern" value="False" />
+    <PVStateValue key="xYStageGridIndex" value="-1" />
+    <PVStateValue key="xYStageGridXIndex" value="-1" />
+    <PVStateValue key="xYStageGridYIndex" value="-1" />
+    <PVStateValue key="yAspectExpansion" value="1" />
+    <PVStateValue key="zDevice" value="0" />
+  </PVStateShard>
+  <Sequence type="Linescan" cycle="1" time="11:39:44.2561384" xYStageGridNumXPositions="4" xYStageGridNumYPositions="4" xYStageGridOverlapPercentage="10" xYStageGridXOverlap="58.9830469953747" xYStageGridYOverlap="58.9830469953747">
+    <PVLinescanSynchZ enabled="False" saveImages="False" piezoMinVoltage="0" piezoMaxVoltage="0" piezoMinPosition="0" piezoMaxPosition="0" piezoZStartVoltage="0" piezoZStopVoltage="0" piezoZStartPosition="0" piezoZStopPosition="0" galvoMultiplicationFactor="1.3333" />
+    <PVLinescanDefinition scanContinuous="False" mode="freeHand" SourcePixelsPerLine="512" SourceLinesPerFrame="512">
+      <Freehand x="263.757568359375" y="79.0772247314453" />
+      <Freehand x="264.754989653989" y="79" />
+      <Freehand x="265.764413502856" y="79" />
+      <Freehand x="266.773837351722" y="79" />
+      <Freehand x="267.778470567266" y="78.9135032703038" />
+      <Freehand x="268.781720512046" y="78.8020310542171" />
+      <Freehand x="269.784970456826" y="78.6905588381305" />
+      <Freehand x="270.788220401606" y="78.5790866220438" />
+      <Freehand x="271.793264026986" y="78.5" />
+      <Freehand x="272.802687875852" y="78.5" />
+      <Freehand x="273.812111724719" y="78.5" />
+      <Freehand x="274.821535573585" y="78.5" />
+      <Freehand x="275.822607859509" y="78.3824845914987" />
+      <Freehand x="276.821886487584" y="78.2397305017737" />
+      <Freehand x="277.821165115659" y="78.0969764120487" />
+      <Freehand x="278.823697063118" y="78" />
+      <Freehand x="279.833120911985" y="78" />
+      <Freehand x="280.842544760851" y="78" />
+      <Freehand x="281.708880732482" y="77.5274128450118" />
+      <Freehand x="282.557478521798" y="76.9885042956404" />
+      <Freehand x="283.547300041578" y="76.7905399916843" />
+      <Freehand x="284.537121561358" y="76.5925756877283" />
+      <Freehand x="285.521333828866" y="76.3696665427835" />
+      <Freehand x="286.500618805312" y="76.1248452986721" />
+      <Freehand x="287.49085356586" y="75.9386433042675" />
+      <Freehand x="288.492482519318" y="75.8134396850853" />
+      <Freehand x="289.494111472775" y="75.6882360659031" />
+      <Freehand x="290.495740426232" y="75.563032446721" />
+      <Freehand x="291.501240016896" y="75.5" />
+      <Freehand x="292.510116631342" y="75.4966277895528" />
+      <Freehand x="293.467740177415" y="75.1774199408616" />
+      <Freehand x="294.425363723489" y="74.8582120921704" />
+      <Freehand x="295.382987269562" y="74.5390042434793" />
+      <Freehand x="296.340610815636" y="74.2197963947881" />
+      <Freehand x="297.298234361709" y="73.9005885460969" />
+      <Freehand x="298.255857907783" y="73.5813806974057" />
+      <Freehand x="299.198284559922" y="73.2206861760313" />
+      <Freehand x="300.135511074818" y="72.8457955700728" />
+      <Freehand x="301.078340781657" y="72.5" />
+      <Freehand x="302.083260839137" y="72.4722463869542" />
+      <Freehand x="303.040884385211" y="72.1530385382631" />
+      <Freehand x="303.998507931284" y="71.8338306895719" />
+      <Freehand x="304.956131477358" y="71.5146228408807" />
+      <Freehand x="305.963182365821" y="71.5" />
+      <Freehand x="306.972606214688" y="71.5" />
+      <Freehand x="307.840846726675" y="71.1591532733251" />
+      <Freehand x="308.720928767483" y="70.6910305282217" />
+      <Freehand x="309.64873568135" y="70.2933989937071" />
+      <Freehand x="310.576542595217" y="69.8957674591926" />
+      <Freehand x="311.504640230233" y="69.4990719539533" />
+      <Freehand x="312.494461750013" y="69.3011076499973" />
+      <Freehand x="313.484283269793" y="69.1031433460413" />
+      <Freehand x="314.448912829988" y="68.8204348680048" />
+      <Freehand x="315.386139344884" y="68.4455442620463" />
+      <Freehand x="316.32336585978" y="68.0706536560878" />
+      <Freehand x="317.277145284921" y="67.740951571693" />
+      <Freehand x="318.23794648185" y="67.4320152909001" />
+      <Freehand x="319.208531685855" y="67.154705232613" />
+      <Freehand x="320.17911688986" y="66.8773951743259" />
+      <Freehand x="321.149702093864" y="66.6000851160387" />
+      <Freehand x="322.145108527345" y="66.5" />
+      <Freehand x="323.138217959173" y="66.4308910204134" />
+      <Freehand x="324.045922236328" y="66" />
+      <Freehand x="325.055346085194" y="66" />
+      <Freehand x="326.064769934061" y="66" />
+      <Freehand x="327.05246292703" y="65.9475370729702" />
+      <Freehand x="327.766233375655" y="65.2337666243453" />
+      <Freehand x="328.678827918287" y="65" />
+      <Freehand x="329.688251767154" y="65" />
+      <Freehand x="330.493331159156" y="64.5066688408436" />
+      <Freehand x="331.4999926837" y="64.5" />
+      <Line lineLength="27.2642990668724" />
+      <PVFreehand x="0.515151515151515" y="0.1544477028348" />
+      <PVFreehand x="0.515625" y="0.154296875" />
+      <PVFreehand x="0.5166015625" y="0.154296875" />
+      <PVFreehand x="0.5185546875" y="0.154296875" />
+      <PVFreehand x="0.521484375" y="0.154296875" />
+      <PVFreehand x="0.5302734375" y="0.1533203125" />
+      <PVFreehand x="0.537109375" y="0.1533203125" />
+      <PVFreehand x="0.5439453125" y="0.15234375" />
+      <PVFreehand x="0.548828125" y="0.15234375" />
+      <PVFreehand x="0.5517578125" y="0.150390625" />
+      <PVFreehand x="0.556640625" y="0.1494140625" />
+      <PVFreehand x="0.560546875" y="0.1484375" />
+      <PVFreehand x="0.568359375" y="0.1474609375" />
+      <PVFreehand x="0.5703125" y="0.1474609375" />
+      <PVFreehand x="0.5712890625" y="0.1474609375" />
+      <PVFreehand x="0.5771484375" y="0.1455078125" />
+      <PVFreehand x="0.5830078125" y="0.1435546875" />
+      <PVFreehand x="0.587890625" y="0.1416015625" />
+      <PVFreehand x="0.58984375" y="0.1416015625" />
+      <PVFreehand x="0.5927734375" y="0.140625" />
+      <PVFreehand x="0.595703125" y="0.1396484375" />
+      <PVFreehand x="0.6005859375" y="0.1396484375" />
+      <PVFreehand x="0.6015625" y="0.138671875" />
+      <PVFreehand x="0.6083984375" y="0.1357421875" />
+      <PVFreehand x="0.61328125" y="0.134765625" />
+      <PVFreehand x="0.6181640625" y="0.1328125" />
+      <PVFreehand x="0.62109375" y="0.1318359375" />
+      <PVFreehand x="0.6279296875" y="0.1298828125" />
+      <PVFreehand x="0.630859375" y="0.1298828125" />
+      <PVFreehand x="0.6328125" y="0.12890625" />
+      <PVFreehand x="0.6337890625" y="0.12890625" />
+      <PVFreehand x="0.638671875" y="0.12890625" />
+      <PVFreehand x="0.640625" y="0.126953125" />
+      <PVFreehand x="0.6435546875" y="0.126953125" />
+      <PVFreehand x="0.64453125" y="0.126953125" />
+      <PVFreehand x="0.6455078125" y="0.1259765625" />
+      <PVFreehand x="0.646484375" y="0.1259765625" />
+      <PVFreehand x="0.6474609375" y="0.1259765625" />
+    </PVLinescanDefinition>
+    <PVStateShard />
+    <Frame relativeTime="0" absoluteTime="1.07499999999982" index="1" parameterSet="CurrentSettings">
+      <File channel="3" channelName="FarRed" filename="LineScan-04102026-1255-8558_Cycle00001_Ch3_000001.ome.tif" source="LineScan-04102026-1255-8558-Cycle00001_Ch3Source.tif" />
+      <PVStateShard>
+        <PVStateValue key="framePeriod" value="1.2576" />
+        <PVStateValue key="linesPerFrame" value="3000" />
+        <PVStateValue key="pixelsPerLine" value="71" />
+        <PVStateValue key="scanLinePeriod" value="0.0004192" />
+      </PVStateShard>
+    </Frame>
+  </Sequence>
+</PVScan>

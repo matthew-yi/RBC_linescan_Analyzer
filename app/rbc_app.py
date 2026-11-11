@@ -1,0 +1,464 @@
+#!/usr/bin/env python3
+"""Launch with python3 rbc_app.py."""
+import json
+import math
+import queue
+import subprocess
+import sys
+import threading
+import tkinter as tk
+from datetime import datetime
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
+from rbc_workflow import prepare, build_macro, import_detections, save_session
+
+
+def create_run_folder(source):
+    experiment = source.parent.name if source.name == 'collected_ome_tif' else source.name
+    label = f'{experiment or "Experiment"} - RBC Analysis - {datetime.now():%Y-%m-%d %H-%M}'
+    number = 1
+    while True:
+        suffix = f' ({number})' if number > 1 else ''
+        output = source.parent / (label + suffix)
+        try:
+            output.mkdir()
+            return output
+        except FileExistsError:
+            number += 1
+
+
+class App:
+    def __init__(self, root):
+        self.root = root
+        root.title('RBC Linescan Analyzer')
+        root.geometry('820x430')
+        root.minsize(640, 360)
+        self.events = queue.Queue()
+        self.records = []
+        self.index = 0
+        self.busy = False
+        self.process = None
+        self.undo = []
+        self.scale = 1.0
+        self.source = tk.StringVar()
+        self.fiji = tk.StringVar(value='/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx')
+        self.duration = tk.StringVar(value='1.0')
+        form = ttk.Frame(root, padding=10)
+        form.pack(fill='x')
+        for row, (label, variable, command) in enumerate((('Original scan folder', self.source, self.choose_source), ('Fiji executable', self.fiji, self.choose_fiji))):
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky='w')
+            ttk.Entry(form, textvariable=variable, width=85).grid(row=row, column=1, sticky='ew')
+            ttk.Button(form, text='Browse…', command=command).grid(row=row, column=2)
+        form.columnconfigure(1, weight=1)
+        ttk.Label(form, text='Fallback duration (seconds)').grid(row=2, column=0, sticky='w')
+        ttk.Entry(form, textvariable=self.duration, width=12).grid(row=2, column=1, sticky='w')
+        actions = ttk.Frame(root, padding=(10,0))
+        actions.pack(fill='x')
+        self.run_button = ttk.Button(actions, text='Run entire folder', command=self.run)
+        self.run_button.pack(side='left')
+        self.resume_button = ttk.Button(actions, text='Resume saved review…', command=self.resume)
+        self.resume_button.pack(side='left', padx=10)
+        self.status = tk.StringVar(value='Choose the original folder containing the numbered scans. Collection runs automatically.')
+        ttk.Label(root, textvariable=self.status, padding=10, wraplength=1050).pack(fill='x')
+        self.progress_text = tk.StringVar(value='Ready')
+        ttk.Label(root, textvariable=self.progress_text, padding=(10, 0)).pack(anchor='w')
+        self.progress = ttk.Progressbar(root, mode='determinate', maximum=1)
+        self.progress.pack(fill='x', padx=10, pady=8)
+        self.open_editor_button = ttk.Button(actions, text='Open editor', command=self.open_editor, state='disabled')
+        self.open_editor_button.pack(side='left')
+        self.build_editor()
+        self.log = tk.Text(root, height=5, state='disabled')
+        self.log.pack(fill='both', expand=True, padx=10, pady=8)
+        root.protocol('WM_DELETE_WINDOW', self.close)
+        root.after(150, self.poll)
+
+    def build_editor(self):
+        self.editor = tk.Toplevel(self.root)
+        self.editor.title('Linescan editor')
+        self.editor.geometry('580x900')
+        self.editor.minsize(460, 480)
+        self.editor.withdraw()
+        self.editor.protocol('WM_DELETE_WINDOW', self.close_editor)
+        self.editor_status = tk.StringVar(value='')
+        self.measurements = tk.StringVar(value='')
+        self.tool = tk.StringVar(value='add')
+        self.show_lines = tk.BooleanVar(value=True)
+        self._image_key = None
+        self.origin_x = 0
+        self.review_buttons = []
+        sidebar = ttk.Frame(self.editor, padding=12, width=200)
+        sidebar.pack(side='right', fill='y')
+        ttk.Label(sidebar, text='LINESCAN TOOLS', font=('TkDefaultFont', 11, 'bold')).pack(anchor='w', pady=(0, 12))
+        ttk.Label(sidebar, textvariable=self.measurements, justify='left').pack(anchor='w', pady=(0, 12))
+        for label, mode in [('Add RBC line', 'add'), ('Remove RBC line', 'remove'), ('Pan image', 'pan')]:
+            button = ttk.Radiobutton(sidebar, text=label, variable=self.tool, value=mode, command=self.render)
+            button.pack(anchor='w', pady=3)
+            self.review_buttons.append(button)
+        ttk.Separator(sidebar).pack(fill='x', pady=10)
+        for label, command in [
+            ('Zoom +', lambda:self.zoom(1.5)), ('Zoom −', lambda:self.zoom(1/1.5)),
+            ('Fit width', self.fit), ('Fit entire image', self.fit_image),
+            ('100%', lambda:self.set_zoom(1)), ('Undo', self.undo_edit),
+            ('Reset automatic lines', self.reset), ('Save', self.save),
+            ('Previous', lambda:self.move(-1)), ('Save / Next', lambda:self.move(1))]:
+            button = ttk.Button(sidebar, text=label, command=command, state='disabled')
+            button.pack(fill='x', pady=3)
+            self.review_buttons.append(button)
+        check = ttk.Checkbutton(sidebar, text='Show RBC lines', variable=self.show_lines, command=self.render)
+        check.pack(anchor='w', pady=10)
+        self.review_buttons.append(check)
+        ttk.Label(sidebar, text='Wheel: scroll\nCtrl + wheel: zoom\nRight click: remove line', justify='left').pack(anchor='w', pady=8)
+        viewport = ttk.Frame(self.editor)
+        viewport.pack(side='left', fill='both', expand=True)
+        ttk.Label(viewport, textvariable=self.editor_status, padding=8, wraplength=300).pack(fill='x')
+        frame = ttk.Frame(viewport)
+        frame.pack(fill='both', expand=True)
+        self.canvas = tk.Canvas(frame, background='#202020', highlightthickness=0)
+        horizontal = ttk.Scrollbar(frame, orient='horizontal', command=self.canvas.xview)
+        vertical = ttk.Scrollbar(frame, orient='vertical', command=self.canvas.yview)
+        self.canvas.configure(xscrollcommand=horizontal.set, yscrollcommand=vertical.set)
+        self.canvas.grid(row=0, column=0, sticky='nsew')
+        horizontal.grid(row=1, column=0, sticky='ew')
+        vertical.grid(row=0, column=1, sticky='ns')
+        frame.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        self.canvas.bind('<Button-1>', self.click)
+        self.canvas.bind('<B1-Motion>', self.drag)
+        self.canvas.bind('<Button-3>', self.remove)
+        self.canvas.bind('<Button-2>', self.remove)
+        self.canvas.bind('<Control-Button-1>', self.remove)
+        self.canvas.bind('<Configure>', self.resize_editor)
+        modifiers = ('Control', 'Command') if sys.platform == 'darwin' else ('Control',)
+        for modifier in modifiers:
+            self.editor.bind(f'<{modifier}-z>', lambda event:self.undo_edit())
+            self.editor.bind(f'<{modifier}-s>', lambda event:self.save())
+        self.bind_editor_scroll(self.editor)
+
+    def bind_editor_scroll(self, widget):
+        # Widget bindings run before class/toplevel bindings. Returning "break"
+        # in wheel() scrolls exactly once, including over buttons and scrollbars.
+        for sequence in ('<MouseWheel>', '<Button-4>', '<Button-5>'):
+            widget.bind(sequence, self.wheel)
+        for child in widget.winfo_children():
+            self.bind_editor_scroll(child)
+
+    def open_editor(self):
+        if not self.records or self.busy:
+            return
+        self.editor.deiconify()
+        self.editor.lift()
+        self.editor.update_idletasks()
+
+    def close_editor(self):
+        if self.save():
+            self.editor.withdraw()
+
+    def resize_editor(self, event):
+        if self.records and hasattr(self, 'image'):
+            self.render()
+
+    def drag(self, event):
+        if self.tool.get() == 'pan' and not self.busy:
+            self.canvas.scan_dragto(event.x, event.y, gain=1)
+
+    def wheel(self, event):
+        if not self.records or self.busy:
+            return 'break'
+        delta = getattr(event, 'delta', 0)
+        direction = -1 if getattr(event, 'num', None) == 4 or delta > 0 else 1
+        if event.state & 0x4:
+            self.zoom(1.2 if direction < 0 else 1/1.2)
+        else:
+            steps = max(1, int(abs(delta)/120)) if abs(delta) >= 120 else max(1, int(abs(delta)))
+            self.canvas.yview_scroll(direction * steps, 'units')
+        return 'break'
+
+    def choose_source(self):
+        value = filedialog.askdirectory(title='Choose raw linescan experiment folder or collected_ome_tif')
+        if value:
+            self.source.set(value)
+
+    def choose_fiji(self):
+        value = filedialog.askopenfilename(title='Choose Fiji executable (inside Fiji.app/Contents/MacOS on macOS)')
+        if value:
+            self.fiji.set(value)
+
+    def write_log(self, text):
+        self.log.configure(state='normal')
+        self.log.insert('end', text+'\n')
+        self.log.see('end')
+        self.log.configure(state='disabled')
+
+    def set_busy(self, busy):
+        self.busy = busy
+        for button in (self.run_button, self.resume_button):
+            button.configure(state='disabled' if busy else 'normal')
+        self.open_editor_button.configure(state='normal' if self.records and not busy else 'disabled')
+        for button in self.review_buttons:
+            button.configure(state='normal' if self.records and not busy else 'disabled')
+
+    def run(self):
+        if self.records and not self.save():
+            return
+        try:
+            from PIL import Image, ImageTk
+            source = Path(self.source.get()).expanduser().resolve()
+            executable = Path(self.fiji.get()).expanduser()
+            duration = float(self.duration.get())
+            if not source.is_dir() or not self.source.get():
+                raise ValueError('Choose an existing source folder.')
+            if not executable.is_file():
+                raise ValueError('Choose the Fiji executable first.')
+            if not math.isfinite(duration) or duration <= 0:
+                raise ValueError('Fallback duration must be a positive number.')
+            output = create_run_folder(source)
+        except (ValueError, ImportError, OSError) as exc:
+            messagebox.showerror('Cannot start', str(exc)+'\nInstall dependencies with: python3 -m pip install -r requirements.txt')
+            return
+        # Every run is isolated, preserving previous analyses and source files.
+        self.set_busy(True)
+        self.status.set('Collecting images and metadata…')
+        self.progress.configure(mode='indeterminate')
+        self.progress.start(15)
+        self.progress_text.set('Collecting input files…')
+        threading.Thread(target=self.worker, args=(source, output, executable, duration), daemon=True).start()
+
+    def worker(self, source, output, executable, duration):
+        try:
+            records = prepare(source, output, lambda line:self.events.put(('log', line)))
+            macro = output / 'run_analysis.ijm'
+            macro.write_text(build_macro(records, output, duration))
+            self.events.put(('log', f'Analyzing {len(records)} images. Output: {output}'))
+            self.events.put(('status', 'Fiji is analyzing the folder. The editor opens when the batch finishes.'))
+            self.events.put(('progress', (0, len(records))))
+            with (output / 'fiji.log').open('w') as log:
+                self.process = subprocess.Popen([str(executable), '--headless', '--console', '-macro', str(macro)], stdout=log, stderr=subprocess.STDOUT)
+                completed = -1
+                while True:
+                    count = len(list((output / 'detections').glob('*.txt')))
+                    if count != completed:
+                        completed = count
+                        self.events.put(('progress', (count, len(records))))
+                    try:
+                        code = self.process.wait(timeout=0.3)
+                        break
+                    except subprocess.TimeoutExpired:
+                        pass
+            self.process = None
+            if code or not (output / 'complete.txt').exists():
+                raise RuntimeError(f'Fiji did not complete (exit {code}). See {output / "fiji.log"}.')
+            self.events.put(('status', 'Saving measurements and review session…'))
+            import_detections(records, output)
+            self.events.put(('done', (records, output)))
+        except Exception as exc:
+            self.events.put(('error', str(exc)))
+
+    def poll(self):
+        try:
+            while True:
+                kind, value = self.events.get_nowait()
+                if kind == 'log': self.write_log(value)
+                elif kind == 'status': self.status.set(value)
+                elif kind == 'progress':
+                    done, total = value
+                    self.progress.stop()
+                    self.progress.configure(mode='determinate', maximum=max(total, 1), value=done)
+                    self.progress_text.set(f'{done} / {total} images complete ({done/total:.0%})' if total else 'No images')
+                elif kind == 'error':
+                    self.progress.stop()
+                    self.progress_text.set('Analysis stopped')
+                    self.set_busy(False)
+                    self.status.set('Analysis stopped. See error and Fiji log.')
+                    messagebox.showerror('Analysis failed', value)
+                elif kind == 'done':
+                    self.records, self.output = value
+                    self.index = 0
+                    self.set_busy(False)
+                    self.progress.stop()
+                    self.progress.configure(mode='determinate', maximum=len(self.records), value=len(self.records))
+                    self.progress_text.set(f'{len(self.records)} / {len(self.records)} images complete (100%)')
+                    self.status.set(f'Analysis complete. Results: {self.output}')
+                    self.load()
+        except queue.Empty:
+            pass
+        self.root.after(150, self.poll)
+
+    def resume(self):
+        path = filedialog.askopenfilename(title='Choose session.json in an RBC Analysis folder', filetypes=[('Review session', '*.json')])
+        if not path: return
+        try:
+            from PIL import Image, ImageTk
+            records = json.loads(Path(path).read_text())
+            output = Path(path).parent
+            if not records or not all((output / 'previews' / f'{n}.png').exists() for n in range(len(records))):
+                raise ValueError('Session has no images or is missing its previews.')
+            for rec in records:
+                for key in ('image', 'peaks', 'automatic_peaks', 'meta', 'angle', 'reviewed'):
+                    rec[key]
+            if self.records and not self.save(): return
+            self.records, self.output = records, output
+            self.index = next((i for i,r in enumerate(records) if not r['reviewed']), 0)
+            self.set_busy(False)
+            self.load()
+        except Exception as exc:
+            messagebox.showerror('Could not open session', str(exc))
+
+    def load(self):
+        from PIL import Image
+        with Image.open(self.output / 'previews' / f'{self.index}.png') as image:
+            self.image = image.convert('RGB')
+        self.undo = []
+        self._image_key = None
+        self.open_editor()
+        self.editor.title(f'Linescan {self.index+1}/{len(self.records)} — {self.records[self.index]["image"]}')
+        self.fit()
+
+    def fit(self):
+        if not self.records: return
+        self.scale = min(8, max(.02, (self.canvas.winfo_width()-24)/self.image.width))
+        self.render()
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(0)
+
+    def fit_image(self):
+        if not self.records: return
+        self.scale = max(.005, min((self.canvas.winfo_width()-24)/self.image.width,
+                                  (self.canvas.winfo_height()-24)/self.image.height, 8))
+        self.render()
+        self.canvas.xview_moveto(0)
+        self.canvas.yview_moveto(0)
+
+    def zoom(self, factor):
+        if self.records:
+            self.set_zoom(self.scale * factor)
+
+    def set_zoom(self, scale):
+        if not self.records: return
+        old_scale = self.scale
+        center_y = self.canvas.canvasy(self.canvas.winfo_height()/2)/old_scale
+        self.scale = min(8, max(.005, scale))
+        self.render()
+        height = max(self.canvas.winfo_height(), round(self.image.height*self.scale))
+        self.canvas.yview_moveto(max(0, (center_y*self.scale-self.canvas.winfo_height()/2)/height))
+
+    def render(self):
+        if not self.records or not hasattr(self, 'image'): return
+        from PIL import Image, ImageTk
+        w,h = max(1, round(self.image.width*self.scale)), max(1, round(self.image.height*self.scale))
+        # Keep the bitmap when editing lines; only rebuild it after zoom or load.
+        key = (self.index, w, h)
+        if key != self._image_key:
+            self.photo = ImageTk.PhotoImage(self.image.resize((w,h), Image.Resampling.BILINEAR))
+            self.canvas.delete('bitmap')
+            self.canvas.create_image(0, 0, image=self.photo, anchor='nw', tags='bitmap')
+            self._image_key = key
+        self.origin_x = max(12, (self.canvas.winfo_width()-w)/2)
+        self.canvas.coords('bitmap', self.origin_x, 0)
+        self.canvas.delete('lines')
+        rec = self.records[self.index]
+        slope = math.tan(math.radians(rec['angle']))
+        if self.show_lines.get():
+            for y in rec['peaks']:
+                self.canvas.create_line(self.origin_x, y*self.scale,
+                    self.origin_x+(self.image.width-1)*self.scale,
+                    (y-(self.image.width-1)*slope)*self.scale,
+                    fill='#ff3030', width=1, tags='lines')
+        self.canvas.configure(scrollregion=(0,0,max(w+24,self.canvas.winfo_width()),max(h,self.canvas.winfo_height())))
+        reviewed = sum(r['reviewed'] for r in self.records)
+        self.editor_status.set(f'{self.index+1}/{len(self.records)} • {self.scale:.0%} • {reviewed} reviewed')
+        duration = rec['meta'][0]
+        flux = f'{len(rec["peaks"])/duration:.2f}' if duration > 0 else 'N/A'
+        self.measurements.set(f'RBC count: {len(rec["peaks"])}\nFrame period: {duration:g} s\nFlux: {flux} RBCs/s\n{rec.get("qc", "OK")}')
+        self.canvas.configure(cursor='fleur' if self.tool.get() == 'pan' else 'crosshair')
+
+    def click(self, event):
+        if self.tool.get() == 'pan':
+            self.canvas.scan_mark(event.x, event.y)
+            return
+        return self.edit(event, self.tool.get() == 'remove')
+
+    def remove(self, event):
+        self.edit(event, True)
+        return 'break'
+
+    def edit(self, event, remove):
+        if not self.records or self.busy: return
+        x,y = (self.canvas.canvasx(event.x)-self.origin_x)/self.scale, self.canvas.canvasy(event.y)/self.scale
+        if not (0<=x<self.image.width and 0<=y<self.image.height): return
+        rec = self.records[self.index]
+        slope = math.tan(math.radians(rec['angle']))
+        intercept = y+x*slope
+        peaks = rec['peaks']
+        before = peaks.copy()
+        if remove:
+            if peaks:
+                nearest = min(peaks, key=lambda p:abs(p-intercept))
+                # Screen-space perpendicular distance: avoid removing a distant line.
+                if abs(nearest-intercept)*self.scale/math.sqrt(1+slope*slope)<=12:
+                    peaks.remove(nearest)
+        elif not any(abs(p-intercept)<.5 for p in peaks):
+            peaks.append(intercept)
+            peaks.sort()
+        if peaks == before:
+            return
+        self.undo.append(before)
+        rec['reviewed'] = False
+        self.render()
+
+    def undo_edit(self):
+        if self.undo:
+            self.records[self.index]['peaks'] = self.undo.pop()
+            self.records[self.index]['reviewed'] = False
+            self.render()
+
+    def reset(self):
+        if self.records:
+            rec = self.records[self.index]
+            self.undo.append(rec['peaks'].copy())
+            rec['peaks'] = rec['automatic_peaks'].copy()
+            rec['reviewed'] = False
+            self.render()
+
+    def save(self):
+        if not self.records: return True
+        try:
+            from PIL import ImageDraw
+            rec = self.records[self.index]
+            annotated = self.image.copy()
+            draw = ImageDraw.Draw(annotated)
+            slope = math.tan(math.radians(rec['angle']))
+            for y in rec['peaks']:
+                draw.line((0,y,self.image.width-1,y-(self.image.width-1)*slope), fill=(255,0,0), width=1)
+            path = self.output / 'RBC_Annotated' / (rec['image']+'_annotated.tif')
+            temp = path.with_suffix('.tmp')
+            annotated.save(temp, format='TIFF')
+            temp.replace(path)
+            rec['reviewed'] = True
+            save_session(self.records, self.output)
+            self.render()
+            return True
+        except Exception as exc:
+            messagebox.showerror('Save failed', str(exc))
+            return False
+
+    def move(self, delta):
+        if not self.records or not self.save(): return
+        target = self.index+delta
+        if target >= len(self.records):
+            messagebox.showinfo('Review complete', f'All images reached. {sum(r["reviewed"] for r in self.records)}/{len(self.records)} reviewed.\nResults saved to:\n{self.output}')
+        elif target >= 0:
+            self.index = target
+            self.load()
+
+    def close(self):
+        if self.busy:
+            messagebox.showinfo('Analysis running', 'Let analysis finish before closing this window. Fiji progress is recorded in the run folder’s fiji.log.')
+            return
+        if self.records and not self.save(): return
+        self.root.destroy()
+
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    App(root)
+    root.mainloop()

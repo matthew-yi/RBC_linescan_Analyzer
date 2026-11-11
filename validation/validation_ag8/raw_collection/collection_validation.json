@@ -1,0 +1,17 @@
+{
+  "collected_ome_tif": {
+    "files": 84,
+    "identical_to_baseline": 84
+  },
+  "collected_xml": {
+    "files": 84,
+    "identical_to_baseline": 84
+  },
+  "collected_ch3source": {
+    "files": 84,
+    "identical_to_baseline": 84
+  },
+  "records": 84,
+  "matching_metadata": 84,
+  "original_sources": true
+}
