@@ -18,7 +18,7 @@ Results go into a separate folder beside your experiment, named `<experiment> - 
 
 ## Review
 
-The separate linescan editor opens after analysis. Use the side tools to add/remove RBC lines, pan, zoom, undo, save, and navigate. The mouse wheel scrolls from anywhere in the editor; Ctrl + wheel zooms. Counts, frame periods, and flux appear beside the image.
+The separate linescan editor opens after analysis. Use **Add / remove RBC lines** for left-click to add and right-click to remove, or choose **Pan image** to drag. Hold **Space** to temporarily pan and release to return to the selected mode. Press **+** or **−** to zoom; **=** and the numeric keypad also work. Side tools provide undo, save, and navigation. The mouse wheel scrolls from anywhere in the editor; Ctrl + wheel zooms. Counts, frame periods, and flux appear beside the image.
 
 **Save / Next**, Previous, and closing the editor save your review. Closing the editor leaves the analyzer open; use **Open editor** to return. To continue a previous run, choose **Resume saved review** and select its `session.json`.
 

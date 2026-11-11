@@ -91,6 +91,8 @@ class App:
         self.editor_status = tk.StringVar(value='')
         self.measurements = tk.StringVar(value='')
         self.tool = tk.StringVar(value='add')
+        self._space_pan = False
+        self.shortcut_tag = f'RBCEditorKeys{id(self)}'
         self.show_lines = tk.BooleanVar(value=True)
         self._image_key = None
         self.brightness = tk.DoubleVar(value=0)
@@ -102,7 +104,7 @@ class App:
         sidebar.pack(side='right', fill='y')
         ttk.Label(sidebar, text='LINESCAN TOOLS', font=('TkDefaultFont', 11, 'bold')).pack(anchor='w', pady=(0, 12))
         ttk.Label(sidebar, textvariable=self.measurements, justify='left').pack(anchor='w', pady=(0, 12))
-        for label, mode in [('Add RBC line', 'add'), ('Remove RBC line', 'remove'), ('Pan image', 'pan')]:
+        for label, mode in [('Add / remove RBC lines', 'add'), ('Pan image', 'pan')]:
             button = ttk.Radiobutton(sidebar, text=label, variable=self.tool, value=mode, command=self.render)
             button.pack(anchor='w', pady=3)
             self.review_buttons.append(button)
@@ -138,7 +140,7 @@ class App:
         check = ttk.Checkbutton(sidebar, text='Show RBC lines', variable=self.show_lines, command=self.render)
         check.pack(anchor='w', pady=10)
         self.review_buttons.append(check)
-        ttk.Label(sidebar, text='Wheel: scroll\nCtrl + wheel: zoom\nRight click: remove line', justify='left').pack(anchor='w', pady=8)
+        ttk.Label(sidebar, text='Left click: add • Right click: remove\nHold Space: pan\n+ / −: zoom • Wheel: scroll\nCtrl + wheel: zoom', justify='left').pack(anchor='w', pady=8)
         viewport = ttk.Frame(self.editor)
         viewport.pack(side='left', fill='both', expand=True)
         ttk.Label(viewport, textvariable=self.editor_status, padding=8, wraplength=300).pack(fill='x')
@@ -163,9 +165,19 @@ class App:
         for modifier in modifiers:
             self.editor.bind(f'<{modifier}-z>', lambda event:self.undo_edit())
             self.editor.bind(f'<{modifier}-s>', lambda event:self.save())
+        # Run shortcuts before button/slider class bindings so Space cannot
+        # accidentally activate a focused button while the user is panning.
+        self.editor.bind_class(self.shortcut_tag, '<KeyPress-space>', self.start_space_pan)
+        self.editor.bind_class(self.shortcut_tag, '<KeyRelease-space>', self.stop_space_pan)
+        for key in ('plus', 'equal', 'KP_Add'):
+            self.editor.bind_class(self.shortcut_tag, f'<KeyPress-{key}>', lambda event:self.key_zoom(1.5))
+        for key in ('minus', 'KP_Subtract'):
+            self.editor.bind_class(self.shortcut_tag, f'<KeyPress-{key}>', lambda event:self.key_zoom(1/1.5))
+        self.editor.bind('<FocusOut>', self.editor_focus_out)
         self.bind_editor_scroll(self.editor)
 
     def bind_editor_scroll(self, widget):
+        widget.bindtags((self.shortcut_tag,) + widget.bindtags())
         # Widget bindings run before class/toplevel bindings. Returning "break"
         # in wheel() scrolls exactly once, including over buttons and scrollbars.
         for sequence in ('<MouseWheel>', '<Button-4>', '<Button-5>'):
@@ -182,6 +194,7 @@ class App:
 
     def close_editor(self):
         if self.save():
+            self.stop_space_pan()
             self.editor.withdraw()
 
     def resize_editor(self, event):
@@ -189,8 +202,34 @@ class App:
             self.render()
 
     def drag(self, event):
-        if self.tool.get() == 'pan' and not self.busy:
+        if self.active_tool() == 'pan' and not self.busy:
             self.canvas.scan_dragto(event.x, event.y, gain=1)
+
+    def active_tool(self):
+        return 'pan' if self._space_pan else self.tool.get()
+
+    def start_space_pan(self, event=None):
+        if self.records and not self.busy:
+            self._space_pan = True
+            self.canvas.configure(cursor='fleur')
+        return 'break'
+
+    def stop_space_pan(self, event=None):
+        self._space_pan = False
+        self.canvas.configure(cursor='fleur' if self.active_tool() == 'pan' else 'crosshair')
+        return 'break'
+
+    def editor_focus_out(self, event):
+        def release_if_outside():
+            focus = self.editor.focus_get()
+            if focus is None or focus.winfo_toplevel() != self.editor:
+                self.stop_space_pan()
+        self.root.after_idle(release_if_outside)
+
+    def key_zoom(self, factor):
+        if self.records and not self.busy:
+            self.zoom(factor)
+        return 'break'
 
     def wheel(self, event):
         if not self.records or self.busy:
@@ -403,16 +442,18 @@ class App:
         duration = rec['meta'][0]
         flux = f'{len(rec["peaks"])/duration:.2f}' if duration > 0 else 'N/A'
         self.measurements.set(f'RBC count: {len(rec["peaks"])}\nFrame period: {duration:g} s\nFlux: {flux} RBCs/s\n{rec.get("qc", "OK")}')
-        self.canvas.configure(cursor='fleur' if self.tool.get() == 'pan' else 'crosshair')
+        self.canvas.configure(cursor='fleur' if self.active_tool() == 'pan' else 'crosshair')
 
     def click(self, event):
-        if self.tool.get() == 'pan':
+        self.canvas.focus_set()
+        if self.active_tool() == 'pan':
             self.canvas.scan_mark(event.x, event.y)
             return
-        return self.edit(event, self.tool.get() == 'remove')
+        return self.edit(event, False)
 
     def remove(self, event):
-        self.edit(event, True)
+        if self.active_tool() != 'pan':
+            self.edit(event, True)
         return 'break'
 
     def edit(self, event, remove):
