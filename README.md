@@ -91,3 +91,5 @@ Outputs are `validation/validation_ag8/baseline_comparison.csv` and `validation/
 
 
 The Excel **Results** sheet follows the Ag8 workbook's core columns: Line scan #, # of lines, pixels/line, line scan period (s), total time (s), # of RBCs, and # RBCs/s. Headers are on row 2; flux cells contain Excel formulas such as `F3/E3`, with calculated values already cached. The **Review Details** sheet contains filenames and the automatic counts, net additions/removals, final counts, frame periods, and flux. The CSV retains this detailed edit table.
+
+Magnified editor views show sharp source pixels without smoothing, similar to Fiji. Zoomed-out views use Lanczos resampling. This changes display only; source resolution, detections, and exported annotations remain unchanged. Reopen the app and resume an existing session to use the updated display.

@@ -468,7 +468,9 @@ class App:
         if key != self._image_key:
             lut = [max(0, min(255, round((v-127.5+self.brightness.get())*self.contrast.get()+127.5))) for v in range(256)]
             display = self.image.convert('L').point(lut)
-            self.photo = ImageTk.PhotoImage(display.resize((w,h), Image.Resampling.BILINEAR))
+            # Enlarging should reveal source pixels rather than blur their boundaries.
+            resampling = Image.Resampling.NEAREST if self.scale >= 1 else Image.Resampling.LANCZOS
+            self.photo = ImageTk.PhotoImage(display.resize((w,h), resampling))
             self.canvas.delete('bitmap')
             self.canvas.create_image(0, 0, image=self.photo, anchor='nw', tags='bitmap')
             self._image_key = key

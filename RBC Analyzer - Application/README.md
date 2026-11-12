@@ -75,3 +75,5 @@ The exported flux is already corrected for frame period; do not divide it again.
 - **Computer slows down:** lower Simultaneous images. More workers do not always finish sooner.
 
 The `app/` folder and `requirements.txt` support the launchers and should stay in place.
+
+Magnified editor views show sharp source pixels without smoothing, similar to Fiji. Zoomed-out views use Lanczos resampling. This changes display only; source resolution, detections, and exported annotations remain unchanged. Reopen the app and resume an existing session to use the updated display.
