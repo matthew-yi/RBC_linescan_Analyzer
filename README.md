@@ -93,3 +93,9 @@ Outputs are `validation/validation_ag8/baseline_comparison.csv` and `validation/
 The Excel **Results** sheet follows the Ag8 workbook's core columns: Line scan #, # of lines, pixels/line, line scan period (s), total time (s), # of RBCs, and # RBCs/s. Headers are on row 2; flux cells contain Excel formulas such as `F3/E3`, with calculated values already cached. The **Review Details** sheet contains filenames and the automatic counts, net additions/removals, final counts, frame periods, and flux. The CSV retains this detailed edit table.
 
 Magnified editor views show sharp source pixels without smoothing, similar to Fiji. Zoomed-out views use Lanczos resampling. This changes display only; source resolution, detections, and exported annotations remain unchanged. Reopen the app and resume an existing session to use the updated display.
+
+## Appearance
+
+Choose **Appearance → Arasaka** in the analyzer window for a charcoal and red interface inspired by the reference PC. It applies to both the analyzer and linescan editor. Choose **Standard** to restore the original appearance. The theme affects interface colors only; linescan pixels, annotation colors, measurements, and exports are unchanged. Appearance defaults to Standard when the app launches.
+
+Arasaka mode also includes small decorative code terminals in the analyzer header and editor sidebar: typed code, a pulsing link indicator, and a moving red trace. These are visual effects only. They never execute commands or read scan data. Switching to Standard removes them and stops their timers; hidden editor windows skip animation drawing.

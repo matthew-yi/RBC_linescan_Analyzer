@@ -77,3 +77,9 @@ The exported flux is already corrected for frame period; do not divide it again.
 The `app/` folder and `requirements.txt` support the launchers and should stay in place.
 
 Magnified editor views show sharp source pixels without smoothing, similar to Fiji. Zoomed-out views use Lanczos resampling. This changes display only; source resolution, detections, and exported annotations remain unchanged. Reopen the app and resume an existing session to use the updated display.
+
+## Appearance
+
+Choose **Appearance → Arasaka** in the analyzer window for a charcoal and red interface inspired by the reference PC. It applies to both the analyzer and linescan editor. Choose **Standard** to restore the original appearance. The theme affects interface colors only; linescan pixels, annotation colors, measurements, and exports are unchanged. Appearance defaults to Standard when the app launches.
+
+Arasaka mode also includes small decorative code terminals in the analyzer header and editor sidebar: typed code, a pulsing link indicator, and a moving red trace. These are visual effects only. They never execute commands or read scan data. Switching to Standard removes them and stops their timers; hidden editor windows skip animation drawing.

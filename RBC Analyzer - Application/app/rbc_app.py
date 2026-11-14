@@ -38,9 +38,88 @@ def completed_image_count(output, total):
                for path in (output / 'detections').glob('*.txt'))
 
 
+class CyberTerminal(tk.Canvas):
+    """Small decorative terminal; never reads files or runs its displayed code."""
+    COMMANDS = (
+        'boot::arasaka / visual_link.init()',
+        'neural_bus.connect(0x7F01) // local',
+        'scan_matrix.map(x, t) -> buffer',
+        'optics.sync() :: channel_03',
+        'render.pipeline / pixel_lock = true',
+        'ice.protocol :: checksum.verify()',
+        'memory[0x{address:04X}] >> visual_bus',
+        'link.keepalive() // signal stable',
+    )
+
+    def __init__(self, parent, height=48):
+        super().__init__(parent, height=height, background='#121216',
+                         highlightthickness=0, takefocus=False)
+        self.timer = None
+        self.running = False
+        self.tick = 0
+        self.line_number = 0
+        self.typed = 0
+        self.history = []
+        self.bind('<Destroy>', self.destroyed, add='+')
+
+    def start(self):
+        if self.running:
+            return
+        self.running = True
+        self.animate()
+
+    def stop(self):
+        self.running = False
+        if self.timer is not None:
+            self.after_cancel(self.timer)
+            self.timer = None
+        if self.winfo_exists():
+            self.delete('all')
+
+    def destroyed(self, event):
+        if event.widget is self:
+            self.stop()
+
+    def animate(self):
+        self.timer = None
+        if not self.running:
+            return
+        # Hidden editor windows do no drawing or terminal updates.
+        if self.winfo_ismapped():
+            self.tick += 1
+            text = self.COMMANDS[self.line_number % len(self.COMMANDS)].format(
+                address=(self.line_number * 7919 + 0xA700) % 65536)
+            self.typed = min(len(text), self.typed + 3)
+            self.delete('all')
+            width, height = self.winfo_width(), self.winfo_height()
+            self.create_text(8, 5, anchor='nw', text='ARASAKA // VISUAL LINK',
+                             font=('Courier', 9, 'bold'), fill='#ff4562')
+            self.create_text(width-8, 5, anchor='ne', text='●' if self.tick % 12 < 8 else '·',
+                             font=('Courier', 9), fill='#ff4562')
+            if height >= 60 and self.history:
+                self.create_text(8, 21, anchor='nw', text=self.history[-1],
+                                 font=('Courier', 9), fill='#9b6470')
+            cursor = '_' if self.tick % 8 < 5 else ' '
+            self.create_text(8, height-21, anchor='nw', text='> '+text[:self.typed]+cursor,
+                             font=('Courier', 9), fill='#e6a4ae')
+            # Quiet moving trace instead of flashes over the working image.
+            x = (self.tick * 4) % max(width, 1)
+            self.create_line(0, height-2, width, height-2, fill='#44202b')
+            self.create_line(max(0, x-28), height-2, x, height-2, fill='#df2548')
+            if self.typed == len(text) and self.tick % 6 == 0:
+                self.history[:] = [text]
+                self.line_number += 1
+                self.typed = 0
+        self.timer = self.after(120, self.animate)
+
+
 class App:
     def __init__(self, root):
         self.root = root
+        self.style = ttk.Style(root)
+        self.default_theme = self.style.theme_use()
+        self.theme = tk.StringVar(value='Standard')
+        self.brand = tk.StringVar(value='RBC LINESCAN ANALYZER')
         root.title('RBC Linescan Analyzer')
         root.geometry('820x430')
         root.minsize(640, 360)
@@ -56,7 +135,11 @@ class App:
         self.fiji = tk.StringVar(value='/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx')
         self.duration = tk.StringVar(value='1.0')
         self.workers = tk.IntVar(value=min(2, os.cpu_count() or 1))
+        ttk.Label(root, textvariable=self.brand, style='Brand.TLabel', padding=(12, 10)).pack(fill='x')
+        self.main_terminal = CyberTerminal(root)
+        self.theme_terminals = [self.main_terminal]
         form = ttk.Frame(root, padding=10)
+        self.main_form = form
         form.pack(fill='x')
         for row, (label, variable, command) in enumerate((('Original scan folder', self.source, self.choose_source), ('Fiji executable', self.fiji, self.choose_fiji))):
             ttk.Label(form, text=label).grid(row=row, column=0, sticky='w')
@@ -68,6 +151,10 @@ class App:
         ttk.Label(form, text='Simultaneous images').grid(row=3, column=0, sticky='w')
         self.worker_control = ttk.Spinbox(form, from_=1, to=8, textvariable=self.workers, width=10)
         self.worker_control.grid(row=3, column=1, sticky='w')
+        ttk.Label(form, text='Appearance').grid(row=4, column=0, sticky='w')
+        themes = ttk.Combobox(form, textvariable=self.theme, values=('Standard', 'Arasaka'), state='readonly', width=18)
+        themes.grid(row=4, column=1, sticky='w', pady=(6, 0))
+        themes.bind('<<ComboboxSelected>>', self.apply_theme)
         actions = ttk.Frame(root, padding=(10,0))
         actions.pack(fill='x')
         self.run_button = ttk.Button(actions, text='Run entire folder', command=self.run)
@@ -85,8 +172,63 @@ class App:
         self.build_editor()
         self.log = tk.Text(root, height=5, state='disabled')
         self.log.pack(fill='both', expand=True, padx=10, pady=8)
+        self.default_root_bg = root.cget('background')
+        self.default_log_colors = {key: self.log.cget(key) for key in ('background', 'foreground', 'insertbackground', 'selectbackground', 'selectforeground')}
+        self.style.configure('Brand.TLabel', font=('TkDefaultFont', 12, 'bold'))
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(150, self.poll)
+
+    def apply_theme(self, event=None):
+        dark = self.theme.get() == 'Arasaka'
+        if dark and 'arasaka' not in self.style.theme_names():
+            bg, panel, ink, red = '#111215', '#202126', '#f0eff0', '#ff2448'
+            self.style.theme_create('arasaka', parent='clam', settings={
+                '.': {'configure': {'background': bg, 'foreground': ink,
+                    'fieldbackground': panel, 'bordercolor': '#454047',
+                    'troughcolor': '#29292f', 'selectbackground': '#a5102b',
+                    'selectforeground': '#ffffff', 'insertcolor': ink},
+                    'map': {'foreground': [('disabled', '#8d858c')]}},
+                'Brand.TLabel': {'configure': {'background': '#ba102f', 'foreground': '#ffffff',
+                    'font': ('TkDefaultFont', 12, 'bold')}},
+                'TButton': {'configure': {'background': panel, 'foreground': ink,
+                    'padding': (7, 4), 'bordercolor': '#a61b35', 'lightcolor': panel,
+                    'darkcolor': panel, 'focuscolor': red},
+                    'map': {'background': [('disabled', '#191a1e'), ('pressed', '#9b122c'), ('active', '#51212c')],
+                            'foreground': [('disabled', '#8d858c'), ('active', '#ffffff')]}},
+                'TEntry': {'configure': {'fieldbackground': panel, 'foreground': ink}},
+                'TSpinbox': {'configure': {'fieldbackground': panel, 'arrowcolor': red}},
+                'TCombobox': {'configure': {'fieldbackground': panel, 'arrowcolor': red},
+                    'map': {'fieldbackground': [('readonly', panel)], 'foreground': [('readonly', ink)],
+                            'selectbackground': [('readonly', panel)], 'selectforeground': [('readonly', ink)]}},
+                'TRadiobutton': {'configure': {'indicatorbackground': panel, 'indicatorforeground': red},
+                    'map': {'indicatorbackground': [('selected', red)], 'background': [('active', panel)]}},
+                'TCheckbutton': {'configure': {'indicatorbackground': panel, 'indicatorforeground': red},
+                    'map': {'indicatorbackground': [('selected', red)], 'background': [('active', panel)]}},
+                'Horizontal.TProgressbar': {'configure': {'background': red, 'bordercolor': bg,
+                    'lightcolor': red, 'darkcolor': red}},
+                'Horizontal.TScale': {'configure': {'background': red}},
+                'TScrollbar': {'configure': {'background': '#454047', 'arrowcolor': red}},
+                'TLabelframe': {'configure': {'bordercolor': '#612230'}},
+                'TLabelframe.Label': {'configure': {'foreground': red}},
+            })
+        self.style.theme_use('arasaka' if dark else self.default_theme)
+        self.root.configure(background='#111215' if dark else self.default_root_bg)
+        self.editor.configure(background='#111215' if dark else self.default_root_bg)
+        self.brand.set('ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
+        self.log.configure(**({'background': '#17181c', 'foreground': '#f0eff0',
+                              'insertbackground': '#ff2448', 'selectbackground': '#a5102b',
+                              'selectforeground': '#ffffff'} if dark else self.default_log_colors))
+
+        for terminal in self.theme_terminals:
+            if dark:
+                if terminal is self.main_terminal:
+                    terminal.pack(before=self.main_form, fill='x', padx=10)
+                else:
+                    terminal.pack(fill='x', pady=(8, 0))
+                terminal.start()
+            else:
+                terminal.stop()
+                terminal.pack_forget()
 
     def build_editor(self):
         self.editor = tk.Toplevel(self.root)
@@ -148,6 +290,8 @@ class App:
         check.pack(anchor='w', pady=10)
         self.review_buttons.append(check)
         ttk.Label(sidebar, text='Left click: add • Right click: remove\nHold Space: pan\n+ / −: zoom • Wheel: scroll\nCtrl + wheel: zoom', justify='left').pack(anchor='w', pady=8)
+        self.editor_terminal = CyberTerminal(sidebar, height=64)
+        self.theme_terminals.append(self.editor_terminal)
         viewport = ttk.Frame(self.editor)
         viewport.pack(side='left', fill='both', expand=True)
         ttk.Label(viewport, textvariable=self.editor_status, padding=8, wraplength=300).pack(fill='x')
