@@ -4,6 +4,7 @@ import json
 import math
 import os
 import queue
+import random
 import shutil
 import subprocess
 import sys
@@ -113,9 +114,211 @@ class CyberTerminal(tk.Canvas):
         self.timer = self.after(120, self.animate)
 
 
+def surface_theme_colors(widget, style=None):
+    """Keep native system color names so labels track OS light/dark appearance."""
+    style=style or ttk.Style(widget)
+    background=style.lookup('TFrame','background') or widget.winfo_toplevel().cget('background')
+    foreground=style.lookup('TLabel','foreground')
+    if not foreground:
+        probe=tk.Label(widget)
+        foreground=probe.cget('foreground')
+        probe.destroy()
+    return background,foreground
+
+
+class OceanSurface(tk.Canvas):
+    """Layout panel or text label with a synchronized piece of the ocean behind it."""
+    def __init__(self,parent,label=False,**kwargs):
+        self.is_label=label
+        self.text=kwargs.pop('text','')
+        self.variable=kwargs.pop('textvariable',None)
+        self.text_font=kwargs.pop('font','TkDefaultFont')
+        self.wrap=kwargs.pop('wraplength',0)
+        self.justify=kwargs.pop('justify','left')
+        padding=kwargs.pop('padding',0)
+        self.pad=(padding,padding) if isinstance(padding,int) else tuple(padding)
+        background,self.ink=surface_theme_colors(parent)
+        super().__init__(parent,background=background,
+                         highlightthickness=0,borderwidth=0,width=kwargs.pop('width',1),height=1,**kwargs)
+        if label:
+            if self.variable is not None:
+                self.trace=self.variable.trace_add('write',lambda *args:self.draw_text())
+            self.bind('<Configure>',lambda event:self.draw_text())
+            self.draw_text()
+
+    def draw_text(self):
+        if not self.is_label or not self.winfo_exists():
+            return
+        self.delete('caption')
+        text=self.variable.get() if self.variable is not None else self.text
+        x,y=self.pad[:2]
+        self.create_text(x,y,anchor='nw',text=text,font=self.text_font,fill=self.ink,
+                         width=self.wrap,justify=self.justify,tags='caption')
+        box=self.bbox('caption')
+        if box:
+            self.configure(width=max(1,box[2]+x),height=max(1,box[3]+y))
+        self.tag_raise('caption')
+
+    def clear_ocean(self,background,foreground):
+        self.delete('ocean')
+        self.configure(background=background)
+        self.ink=foreground
+        self.draw_text()
+
+    def show_ocean(self,source):
+        if not self.winfo_ismapped():
+            return
+        dx=self.winfo_rootx()-source.winfo_rootx()
+        dy=self.winfo_rooty()-source.winfo_rooty()
+        self.delete('ocean')
+        allowed={
+            'rectangle':('fill','outline','width'), 'oval':('fill','outline','width'),
+            'polygon':('fill','outline','width','smooth','splinesteps'),
+            'line':('fill','width','smooth','splinesteps'),
+            'image':('image','anchor'),
+        }
+        for item in source.find_overlapping(dx,dy,dx+self.winfo_width(),dy+self.winfo_height()):
+            kind=source.type(item)
+            if kind not in allowed:
+                continue
+            points=[v-(dx if i%2==0 else dy) for i,v in enumerate(source.coords(item))]
+            options={name:source.itemcget(item,name) for name in allowed[kind]}
+            getattr(self,'create_'+kind)(*points,**options,tags='ocean')
+        self.tag_lower('ocean')
+
+
+class OceanDrifter:
+    """A bounded, smoothly steered random path in normalized water coordinates."""
+    def __init__(self, depth, rng=None):
+        self.rng=rng or random.Random()
+        self.low=max(.10,depth-.10)
+        self.high=min(.94,depth+.10)
+        self.x=self.rng.uniform(.10,.90)
+        self.y=self.rng.uniform(self.low,self.high)
+        self.vx=self.vy=0.0
+        self.direction=1
+        self.remaining=0
+
+    def step(self,width,height):
+        if self.remaining<=0 or abs(self.x-getattr(self,'tx',0))+abs(self.y-getattr(self,'ty',0))<.025:
+            self.tx=self.rng.uniform(.08,.92)
+            self.ty=self.rng.uniform(self.low,self.high)
+            self.remaining=self.rng.randint(70,180)
+        self.remaining-=1
+        dx=(self.tx-self.x)*width
+        dy=(self.ty-self.y)*height
+        length=max(1,math.hypot(dx,dy))
+        self.vx+=(dx/length*1.0-self.vx)*.035
+        self.vy+=(dy/length*.65-self.vy)*.035
+        self.x=min(.95,max(.05,self.x+self.vx/max(width,1)))
+        self.y=min(self.high,max(self.low,self.y+self.vy/max(height,1)))
+        if abs(self.vx)>.08:
+            self.direction=1 if self.vx>0 else -1
+        return self.x*width,self.y*height,self.direction
+
+
+def clean_sprite_colors(image, remove_magenta=False):
+    """Preserve visible RGB; never include transparent key colors in a palette."""
+    image=image.convert('RGBA')
+    if remove_magenta:
+        pixels=list(image.get_flattened_data() if hasattr(image,'get_flattened_data') else image.getdata())
+        image.putdata([(r,g,b,0 if r>g+32 and b>g+32 else a)
+                       for r,g,b,a in pixels])
+    return image
+
+
+def resize_sprite(image, size, mirrored=False):
+    """Nearest-neighbor scaling keeps the source palette and alpha unchanged."""
+    from PIL import Image, ImageOps
+    image=image.resize((size//3,max(1,round(size/3*image.height/image.width))),Image.Resampling.NEAREST)
+    image=image.resize((image.width*3,image.height*3),Image.Resampling.NEAREST)
+    return ImageOps.mirror(image) if mirrored else image
+
+
+class OceanAquarium(CyberTerminal):
+    """Underwater gradient, drifting creatures, bubbles, and seabed."""
+
+    def load_art(self):
+        from PIL import Image, ImageOps, ImageTk
+        assets = Path(__file__).resolve().parent / 'assets'
+        self.fish_frames = {}
+        sheets = [('ocean_fish_sheet.png', 4, 52), ('ocean_depth_fish.png', 8, 52),
+                  ('ocean_mammals_flat.png', 4, 96)]
+        species = 0
+        for filename, rows, size in sheets:
+            with Image.open(assets / filename) as image:
+                sheet = clean_sprite_colors(image,remove_magenta=filename=='ocean_mammals_flat.png')
+            for row in range(rows):
+                frames = [sheet.crop((round(col*sheet.width/4), round(row*sheet.height/rows),
+                                      round((col+1)*sheet.width/4), round((row+1)*sheet.height/rows)))
+                          for col in range(4)]
+                bounds = [im.getchannel('A').point(lambda v:255 if v>32 else 0).getbbox()
+                          for im in frames]
+                bounds = [box for box in bounds if box]
+                box = (min(b[0] for b in bounds), min(b[1] for b in bounds),
+                       max(b[2] for b in bounds), max(b[3] for b in bounds))
+                for direction in (1, -1):
+                    pictures = []
+                    for frame in frames:
+                        fish = frame.crop(box)
+                        fish = resize_sprite(fish,size,mirrored=direction==-1)
+                        pictures.append(ImageTk.PhotoImage(fish, master=self))
+                    self.fish_frames[species, direction] = pictures
+                species += 1
+    def animate(self):
+        self.timer = None
+        if not self.running:
+            return
+        if self.winfo_ismapped():
+            self.tick += 1
+            self.delete('all')
+            width, height = self.winfo_width(), self.winfo_height()
+            self.configure(background='#062b40')
+            self.draw_depth(width,height)
+            for n in range(6):
+                x = (n*83+math.sin(self.tick*.05+n)*5) % max(width,1)
+                y = height-(self.tick*.7+n*17) % max(height,1)
+                self.create_rectangle(x,y,x+2,y+2,outline='#79b7bf')
+            # Decorative habitat bands, rather than a literal species-depth chart.
+            depths = [.20,.31,.43,.53,.15,.24,.37,.46,.58,.73,.85,.94,.28,.40,.63,.49]
+            population = list(range(16))
+            if not hasattr(self,'drifters'):
+                self.drifters=[OceanDrifter(depth) for depth in depths]
+            for n in population:
+                x,y,direction=self.drifters[n].step(width,height)
+                self.create_image(x,y,image=self.fish_frames[n,direction][0])
+        callback=getattr(self,'on_draw',None)
+        if callback is not None:
+            callback(self)
+        self.timer = self.after(60, self.animate)
+
+    def draw_depth(self,width,height):
+        if not hasattr(self,'fish_frames'):
+            self.load_art()
+        # Color bands deepen from sunlit turquoise to nearly black blue.
+        for y in range(0,height,8):
+            t=y/max(height,1)
+            color='#%02x%02x%02x' % (round(15*(1-t)+2*t),round(106*(1-t)**1.7+8*t),round(139*(1-t)**1.3+20*t))
+            self.create_rectangle(0,y,width,y+8,fill=color,outline='')
+        floor=height-32
+        self.create_polygon(0,height,0,floor,width*.3,floor-8,width*.6,floor+3,
+                            width,floor-4,width,height,fill='#73624b',outline='')
+        for n in range(10):
+            x=n*29 % max(width,1)
+            self.create_rectangle(x,floor+12+(n%3)*5,x+3,floor+14+(n%3)*5,fill='#a38b63',outline='')
+        for n in range(5):
+            x=12+n*31 % max(width,1)
+            for branch in range(3):
+                sway=math.sin(self.tick*.05+n)*3
+                self.create_line(x,floor+4,x+branch*3-3+sway,floor-15-branch*5,
+                                 fill='#387f69',width=2)
+
+
+
 class App:
     def __init__(self, root):
         self.root = root
+        self.ocean_surfaces = []
         self.style = ttk.Style(root)
         self.default_theme = self.style.theme_use()
         self.theme = tk.StringVar(value='Standard')
@@ -138,33 +341,36 @@ class App:
         ttk.Label(root, textvariable=self.brand, style='Brand.TLabel', padding=(12, 10)).pack(fill='x')
         self.main_terminal = CyberTerminal(root)
         self.theme_terminals = [self.main_terminal]
-        form = ttk.Frame(root, padding=10)
+        self.main_ocean = OceanAquarium(root, height=220)
+        self.main_ocean.full_depth = True
+        self.ocean_panels = [self.main_ocean]
+        form = self.surface(root, padding=10)
         self.main_form = form
         form.pack(fill='x')
         for row, (label, variable, command) in enumerate((('Original scan folder', self.source, self.choose_source), ('Fiji executable', self.fiji, self.choose_fiji))):
-            ttk.Label(form, text=label).grid(row=row, column=0, sticky='w')
+            self.surface(form, label=True, text=label).grid(row=row, column=0, sticky='w')
             ttk.Entry(form, textvariable=variable, width=85).grid(row=row, column=1, sticky='ew')
             ttk.Button(form, text='Browse…', command=command).grid(row=row, column=2)
         form.columnconfigure(1, weight=1)
-        ttk.Label(form, text='Fallback duration (seconds)').grid(row=2, column=0, sticky='w')
+        self.surface(form, label=True, text='Fallback duration (seconds)').grid(row=2, column=0, sticky='w')
         ttk.Entry(form, textvariable=self.duration, width=12).grid(row=2, column=1, sticky='w')
-        ttk.Label(form, text='Simultaneous images').grid(row=3, column=0, sticky='w')
+        self.surface(form, label=True, text='Simultaneous images').grid(row=3, column=0, sticky='w')
         self.worker_control = ttk.Spinbox(form, from_=1, to=8, textvariable=self.workers, width=10)
         self.worker_control.grid(row=3, column=1, sticky='w')
-        ttk.Label(form, text='Appearance').grid(row=4, column=0, sticky='w')
-        themes = ttk.Combobox(form, textvariable=self.theme, values=('Standard', 'Arasaka'), state='readonly', width=18)
+        self.surface(form, label=True, text='Appearance').grid(row=4, column=0, sticky='w')
+        themes = ttk.Combobox(form, textvariable=self.theme, values=('Standard', 'Arasaka', 'Ocean'), state='readonly', width=18)
         themes.grid(row=4, column=1, sticky='w', pady=(6, 0))
         themes.bind('<<ComboboxSelected>>', self.apply_theme)
-        actions = ttk.Frame(root, padding=(10,0))
+        actions = self.surface(root, padding=(10,0))
         actions.pack(fill='x')
         self.run_button = ttk.Button(actions, text='Run entire folder', command=self.run)
         self.run_button.pack(side='left')
         self.resume_button = ttk.Button(actions, text='Resume saved review…', command=self.resume)
         self.resume_button.pack(side='left', padx=10)
         self.status = tk.StringVar(value='Choose the original folder containing the numbered scans. Collection runs automatically.')
-        ttk.Label(root, textvariable=self.status, padding=10, wraplength=1050).pack(fill='x')
+        self.surface(root, label=True, textvariable=self.status, padding=10, wraplength=1050).pack(fill='x')
         self.progress_text = tk.StringVar(value='Ready')
-        ttk.Label(root, textvariable=self.progress_text, padding=(10, 0)).pack(anchor='w')
+        self.surface(root, label=True, textvariable=self.progress_text, padding=(10, 0)).pack(anchor='w')
         self.progress = ttk.Progressbar(root, mode='determinate', maximum=1)
         self.progress.pack(fill='x', padx=10, pady=8)
         self.open_editor_button = ttk.Button(actions, text='Open editor', command=self.open_editor, state='disabled')
@@ -175,14 +381,27 @@ class App:
         self.default_root_bg = root.cget('background')
         self.default_log_colors = {key: self.log.cget(key) for key in ('background', 'foreground', 'insertbackground', 'selectbackground', 'selectforeground')}
         self.style.configure('Brand.TLabel', font=('TkDefaultFont', 12, 'bold'))
+        self.main_ocean.on_draw = self.paint_surfaces
+        self.editor_ocean.on_draw = self.paint_surfaces
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(150, self.poll)
 
+    def surface(self,parent,**kwargs):
+        widget=OceanSurface(parent,**kwargs)
+        self.ocean_surfaces.append(widget)
+        return widget
+
+    def paint_surfaces(self,source):
+        for surface in self.ocean_surfaces:
+            if surface.winfo_toplevel() == source.winfo_toplevel():
+                surface.show_ocean(source)
+
     def apply_theme(self, event=None):
         dark = self.theme.get() == 'Arasaka'
-        if dark and 'arasaka' not in self.style.theme_names():
+        ocean = self.theme.get() == 'Ocean'
+        if (dark or ocean) and 'arasaka' not in self.style.theme_names():
             bg, panel, ink, red = '#111215', '#202126', '#f0eff0', '#ff2448'
-            self.style.theme_create('arasaka', parent='clam', settings={
+            self.arasaka_settings = {
                 '.': {'configure': {'background': bg, 'foreground': ink,
                     'fieldbackground': panel, 'bordercolor': '#454047',
                     'troughcolor': '#29292f', 'selectbackground': '#a5102b',
@@ -210,25 +429,55 @@ class App:
                 'TScrollbar': {'configure': {'background': '#454047', 'arrowcolor': red}},
                 'TLabelframe': {'configure': {'bordercolor': '#612230'}},
                 'TLabelframe.Label': {'configure': {'foreground': red}},
-            })
-        self.style.theme_use('arasaka' if dark else self.default_theme)
-        self.root.configure(background='#111215' if dark else self.default_root_bg)
-        self.editor.configure(background='#111215' if dark else self.default_root_bg)
-        self.brand.set('ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
-        self.log.configure(**({'background': '#17181c', 'foreground': '#f0eff0',
+            }
+            self.style.theme_create('arasaka', parent='clam', settings=self.arasaka_settings)
+        if ocean and 'ocean' not in self.style.theme_names():
+            palette = {'#111215': '#082c40', '#202126': '#12465b', '#f0eff0': '#e8f7f5',
+                '#ff2448': '#54dbc9', '#454047': '#37758a', '#29292f': '#0b364a',
+                '#a5102b': '#176d80', '#8d858c': '#91aeb8', '#ba102f': '#106681',
+                '#a61b35': '#368e9f', '#191a1e': '#123344', '#9b122c': '#18768a',
+                '#51212c': '#205e73', '#612230': '#37758a'}
+            settings = json.dumps(self.arasaka_settings)
+            for old, new in palette.items():
+                settings = settings.replace(old, new)
+            self.style.theme_create('ocean', parent='clam', settings=json.loads(settings))
+        self.style.theme_use('ocean' if ocean else 'arasaka' if dark else self.default_theme)
+        background,foreground=surface_theme_colors(self.root,self.style)
+        for surface in self.ocean_surfaces:
+            surface.clear_ocean(background,foreground)
+        self.root.minsize(640, 360)
+        self.root.configure(background='#082c40' if ocean else '#111215' if dark else self.default_root_bg)
+        self.editor.configure(background='#082c40' if ocean else '#111215' if dark else self.default_root_bg)
+        self.brand.set('OCEAN  //  LINESCAN EXPLORER' if ocean else 'ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
+        self.log.configure(**({'background': '#082c40', 'foreground': '#e8f7f5',
+                              'insertbackground': '#54dbc9', 'selectbackground': '#176d80',
+                              'selectforeground': '#ffffff'} if ocean else {'background': '#17181c', 'foreground': '#f0eff0',
                               'insertbackground': '#ff2448', 'selectbackground': '#a5102b',
                               'selectforeground': '#ffffff'} if dark else self.default_log_colors))
 
-        for terminal in self.theme_terminals:
-            if dark:
-                if terminal is self.main_terminal:
+        # Decorative backgrounds must not reserve space in the working layout.
+        self.editor.minsize(460,480)
+        self.main_form.pack_configure(pady=0)
+        self.editor_sidebar.pack_configure(padx=(8 if ocean else 0),pady=(8 if ocean else 0))
+        self.editor_viewport.pack_configure(padx=(8 if ocean else 0),pady=(8 if ocean else 0))
+        for terminal in self.theme_terminals + self.ocean_panels:
+            active = ocean if terminal in self.ocean_panels else dark
+            if active:
+                if terminal is self.main_ocean:
+                    terminal.place(x=0,y=0,relwidth=1,relheight=1)
+                    terminal.tk.call('lower',str(terminal))
+                elif terminal is self.main_terminal:
                     terminal.pack(before=self.main_form, fill='x', padx=10)
+                elif terminal is self.editor_ocean:
+                    terminal.place(x=0,y=0,relwidth=1,relheight=1)
+                    terminal.tk.call('lower',str(terminal))
                 else:
                     terminal.pack(fill='x', pady=(8, 0))
                 terminal.start()
             else:
                 terminal.stop()
                 terminal.pack_forget()
+                terminal.place_forget()
 
     def build_editor(self):
         self.editor = tk.Toplevel(self.root)
@@ -249,10 +498,10 @@ class App:
         self._contrast_after = None
         self.origin_x = 0
         self.review_buttons = []
-        sidebar = ttk.Frame(self.editor, padding=12, width=200)
+        sidebar = self.surface(self.editor, padding=12, width=200)
         sidebar.pack(side='right', fill='y')
-        ttk.Label(sidebar, text='LINESCAN TOOLS', font=('TkDefaultFont', 11, 'bold')).pack(anchor='w', pady=(0, 12))
-        ttk.Label(sidebar, textvariable=self.measurements, justify='left').pack(anchor='w', pady=(0, 12))
+        self.surface(sidebar, label=True, text='LINESCAN TOOLS', font=('TkDefaultFont', 11, 'bold')).pack(anchor='w', pady=(0, 12))
+        self.surface(sidebar, label=True, textvariable=self.measurements, justify='left').pack(anchor='w', pady=(0, 12))
         for label, mode in [('Add / remove RBC lines', 'add'), ('Pan image', 'pan')]:
             button = ttk.Radiobutton(sidebar, text=label, variable=self.tool, value=mode, command=self.render)
             button.pack(anchor='w', pady=3)
@@ -273,7 +522,7 @@ class App:
             button = ttk.Button(sidebar, text=label, command=command, state='disabled')
             button.pack(fill='x', pady=3)
             self.review_buttons.append(button)
-        buttons = ttk.Frame(sidebar)
+        buttons = self.surface(sidebar)
         buttons.pack(fill='x')
         for column in range(2):
             buttons.columnconfigure(column, weight=1)
@@ -289,13 +538,19 @@ class App:
         check = ttk.Checkbutton(sidebar, text='Show RBC lines', variable=self.show_lines, command=self.render)
         check.pack(anchor='w', pady=10)
         self.review_buttons.append(check)
-        ttk.Label(sidebar, text='Left click: add • Right click: remove\nHold Space: pan\n+ / −: zoom • Wheel: scroll\nCtrl + wheel: zoom', justify='left').pack(anchor='w', pady=8)
+        self.surface(sidebar, label=True, text='Left click: add • Right click: remove\nHold Space: pan\n+ / −: zoom • Wheel: scroll\nCtrl + wheel: zoom', justify='left').pack(anchor='w', pady=8)
         self.editor_terminal = CyberTerminal(sidebar, height=64)
         self.theme_terminals.append(self.editor_terminal)
-        viewport = ttk.Frame(self.editor)
+        self.editor_sidebar = sidebar
+        self.editor_ocean = OceanAquarium(self.editor, height=80)
+        self.editor_ocean.configure(width=148)
+        self.editor_ocean.full_depth = True
+        self.ocean_panels.append(self.editor_ocean)
+        viewport = self.surface(self.editor)
+        self.editor_viewport = viewport
         viewport.pack(side='left', fill='both', expand=True)
-        ttk.Label(viewport, textvariable=self.editor_status, padding=8, wraplength=300).pack(fill='x')
-        frame = ttk.Frame(viewport)
+        self.surface(viewport, label=True, textvariable=self.editor_status, padding=8, wraplength=300).pack(fill='x')
+        frame = self.surface(viewport)
         frame.pack(fill='both', expand=True)
         self.canvas = tk.Canvas(frame, background='#202020', highlightthickness=0)
         horizontal = ttk.Scrollbar(frame, orient='horizontal', command=self.canvas.xview)

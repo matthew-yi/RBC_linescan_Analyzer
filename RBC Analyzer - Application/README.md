@@ -83,3 +83,33 @@ Magnified editor views show sharp source pixels without smoothing, similar to Fi
 Choose **Appearance → Arasaka** in the analyzer window for a charcoal and red interface inspired by the reference PC. It applies to both the analyzer and linescan editor. Choose **Standard** to restore the original appearance. The theme affects interface colors only; linescan pixels, annotation colors, measurements, and exports are unchanged. Appearance defaults to Standard when the app launches.
 
 Arasaka mode also includes small decorative code terminals in the analyzer header and editor sidebar: typed code, a pulsing link indicator, and a moving red trace. These are visual effects only. They never execute commands or read scan data. Switching to Standard removes them and stops their timers; hidden editor windows skip animation drawing.
+
+Choose **Appearance → Ocean** for deep blue panels, turquoise accents, and small animated aquariums in the analyzer header and editor sidebar. Layered waves, rising bubbles, and animated pixel-art fish sprites animate only in Ocean mode. Switching themes stops and hides the aquarium. These decorations do not change scan images, measurements, or exports.
+
+Ocean artwork now uses a reference-inspired four-species swimming sprite sheet and a pixel-art wave-painting vignette. Both are bundled in `app/assets/`; keep that folder with the app. Fish cycle through swimming frames, while the painting drifts gently beneath small water ripples and bubbles.
+
+The Ocean editor now has a full-window animated background behind the controls and scan viewer: surface waves, water that darkens with depth, and a seabed with swaying seaweed. An open water area between the panels shows creatures passing at different levels. The scene retains the first four fish, adds eight fish varieties, and includes dolphins, orcas, humpbacks, and belugas in simplified flat-color pixel art. Ocean mode expands the editor to keep the controls and scan area usable; switching themes hides the scene and stops its animation.
+
+Ocean mode’s top border now draws continuous rolling water with layered swells, shaded faces, crest foam, and light spray. It does not tile or distort the wave painting. Fish use stationary sprites in the editor; the analyzer header contains only water. Animation stops when switching away from Ocean.
+
+The wave implementation is inspired by the painting’s indigo water and pale foam, rather than repeating the artwork. Fish remain at fixed positions and use a single frame; only water, bubbles and seaweed move.
+
+Wave details include hollow curling lips, forked cream foam trails, fine water contours, and drifting spray inspired by woodblock wave shapes. The rendering remains continuous and uses no repeated painting tiles.
+
+Current wave display: a single Great Wave pixel-art animation replaces the procedural wave curves. Eight aligned painting frames play forward and backward for a gentle loop. The painting retains its proportions, with proportional cropping to fill the banner. It is never tiled or warped into strips. Fish remain still.
+
+The wave banner now fills its width using proportional scaling and cropping. It never stretches a single edge column into the margins. The taller analyzer banner shows more of the painting.
+
+The large curling wave has been removed from the active Ocean animation. Smaller rolling waves, the warm sky, and Mount Fuji remain. Short banners crop toward the bottom to keep the waves visible.
+
+Current Ocean behavior: water fills the entire background of both application windows, underneath the controls and scan viewer. The surface animation crops to water only, removing the remaining sky and mountain. Fish and marine mammals keep a single sprite pose but drift toward random destinations with smooth steering and direction changes, staying within decorative depth bands. Motion remains behind UI panels and never changes the scan image. Switching themes stops the animation.
+
+Ocean now shows through the layout panels and text-label backgrounds in both windows. Panels reproduce the same animated scene at their screen position so water and fish remain aligned across boundaries. Input fields, dropdowns, buttons, boxed brightness controls, the log, and the scan image remain opaque and usable. Standard and Arasaka restore solid backgrounds.
+
+Sprite color correction: nearest-neighbor resizing preserves the original visible palette and alpha; transparent magenta is no longer included in RGB palette reduction, and visible magenta key fringes are removed from marine mammals. The water surface now shows its full source width at proportional scale and fades into the depth gradient, avoiding a magnified strip and hard lower boundary.
+
+Current theme fixes: Ocean uses simple gently rolling wave layers again; painting animation assets are retained but no longer displayed. Fish still drift behind the controls. Standard labels now use the native theme foreground and background, including macOS system colors, so text remains readable in light and dark appearance both on launch and after switching themes.
+
+Ocean mode no longer displays any waves or painting animation. Both windows retain the continuous underwater depth gradient, drifting fish and marine mammals, bubbles, and seabed behind the controls.
+
+Compact Ocean layout: the former wave header spacing, wide center gutter, and extra bottom padding are removed. The scan viewer and controls begin near the top of the editor and use the available window space. Theme selection no longer forces a larger editor size; backgrounds remain behind the UI.
