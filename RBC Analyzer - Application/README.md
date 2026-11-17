@@ -1,5 +1,7 @@
 # RBC Linescan Analyzer
 
+For setup and everyday use, see [SOP: RBC Linescan Analyzer](SOP_RBC_Linescan_Analyzer.md).
+
 Lab sharing edition • November 11, 2026
 
 Extract the ZIP and keep this entire folder together on your computer. Run setup once on each computer before launching. No experimental images, results, or computer-specific Python environment are included.
@@ -113,3 +115,15 @@ Current theme fixes: Ocean uses simple gently rolling wave layers again; paintin
 Ocean mode no longer displays any waves or painting animation. Both windows retain the continuous underwater depth gradient, drifting fish and marine mammals, bubbles, and seabed behind the controls.
 
 Compact Ocean layout: the former wave header spacing, wide center gutter, and extra bottom padding are removed. The scan viewer and controls begin near the top of the editor and use the available window space. Theme selection no longer forces a larger editor size; backgrounds remain behind the UI.
+
+## Seattle appearance
+
+Choose **Appearance → Seattle** for a pixel-art adaptation of the supplied Seattle skyline photo, with the Space Needle, Mount Rainier, downtown buildings and foreground trees. The static artwork appears behind labels and between controls in both windows. The artwork fills each window edge to edge, preserves its proportions, and crops at the edges as needed. It is darkened slightly for readable labels. Navy and evergreen controls remain opaque. Theme changes do not alter scans, detections, measurements or exports.
+
+Seattle backgrounds resize to fill both windows without borders or margins. Wide or tall windows may crop part of the skyline to preserve proportions.
+
+## Tokyo and Seattle Rain
+
+Choose **Appearance → Tokyo** for the supplied Tokyo skyline photo adapted to pixel art, with Tokyo Tower, Mount Fuji, sunset colors, and slowly drifting cherry blossom petals. Choose **Appearance → Seattle Rain** for the Seattle artwork in a cooler tone with slanted rain streaks. Both effects appear behind labels and layout areas in both windows, fill the window when resized, and leave control boxes and scan pixels unchanged. **Seattle** remains available without rain. Effects stop when changing themes; hidden windows skip particle updates.
+
+Seattle Rain now uses its own overcast skyline artwork with layered grey storm clouds, muted wet-weather lighting, and haze around Mount Rainier. The rain is denser, faster, and longer, with differently weighted streaks for a pouring effect. Density adjusts to window area. Regular Seattle keeps its sunny artwork, and Tokyo petals are unchanged.

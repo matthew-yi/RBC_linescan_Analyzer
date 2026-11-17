@@ -32,3 +32,21 @@ Active artwork is now `small_waves_animation.png`, edited with the built-in imag
 The app now crops the active sheet to its water region when rendering. Both windows use a full-window underwater background. Creatures use one sprite pose and move through smoothly steered random paths within their depth bands.
 
 Runtime corrections preserve sprite RGB/alpha without recoloring, remove marine-mammal magenta key remnants, and scale the full small-wave water band to the window width with a soft alpha transition into deeper water.
+
+## Seattle artwork
+
+`seattle_skyline.png` was created with the built-in image generator from the user's skyline photograph. It is the static background for both Seattle-theme windows. The app scales the artwork to cover the window with nearest-neighbor resizing, crops edges as needed, and dims the presentation slightly for text contrast.
+
+Final prompt: Use case: style-transfer. Transform the attached Seattle skyline photograph into clean detailed 16-bit pixel art for a desktop application's Seattle theme. Preserve the actual composition: Space Needle prominent on LEFT, downtown Seattle skyline in middle, snowy Mount Rainier on RIGHT in distance, green trees and Seattle Center buildings in foreground, clear blue sky above. Keep recognizable proportions and positions of landmarks. Crisp square pixel clusters, hand-crafted game background, limited blue/evergreen/warm stone palette, no gradients or photo texture. Landscape 1536x1024. No text, logos, interface, borders, invented landmarks, or watermarks. The result should be a pixel-art adaptation of THIS photograph, not a different Seattle scene.
+
+## Tokyo artwork and city weather
+
+`tokyo_skyline.png` was created with the built-in image generator from the user's Tokyo photo. The app animates cherry blossom petals separately using small code-drawn particles. Seattle Rain reuses `seattle_skyline.png`, applies a cooler presentation, and draws rain particles at runtime. No weather is baked into scan images or exported results.
+
+Final Tokyo prompt: Use case: style-transfer. Turn the attached Tokyo skyline photograph into crisp richly detailed 16-bit pixel art for a desktop app theme. Preserve THIS composition: red-and-white Tokyo Tower left of center, dense Tokyo buildings below, huge snowy Mount Fuji centered in distance, soft golden sunset on right, blue sky with pale clouds. Keep landmark scale, city layout, lighting direction, and camera. Deliberate square pixel clusters and limited warm gold, slate blue, muted pink and evergreen palette; no photographic texture, no smooth gradients. Landscape 1536x1024. Do not add text, logos, borders, people or interface. Do not bake cherry petals into the scene; the app will animate those separately. No invented landmarks.
+
+## Overcast Seattle Rain
+
+`seattle_rain_skyline.png` is a separate built-in image-generator edit of the sunny Seattle artwork; regular Seattle still uses the original. Foreground rain is animated in code.
+
+Final edit prompt: Edit this Seattle pixel-art skyline for a POURING RAIN weather variant. Change the bright blue sky to a fully overcast GRAY sky with layered, thick storm clouds, light and dark slate grey pixel clusters, NO blue sky patches and NO sunshine. Keep the Space Needle, all buildings, Mount Rainier, trees, camera framing, exact landmark positions, and crisp pixel art style. Cool overcast lighting, slightly muted wet green trees and wet-looking roofs, light atmospheric haze around mountain. Do not draw foreground raindrops or rain streaks; animated rain is added by app. No lightning, text, logos, UI, borders. Preserve the image dimensions and composition.

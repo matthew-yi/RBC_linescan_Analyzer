@@ -315,6 +315,92 @@ class OceanAquarium(CyberTerminal):
 
 
 
+def seattle_background(image,size):
+    """Fill any window size without margins or changing the image proportions."""
+    from PIL import Image, ImageOps
+    scene=ImageOps.fit(image,size,method=Image.Resampling.NEAREST,centering=(.5,.5))
+    return Image.blend(scene,Image.new('RGB',size,'#091e28'),.38)
+
+
+class WeatherParticle:
+    """Small screen-relative particles with gentle drift and bounded recycling."""
+    def __init__(self,kind,rng=None):
+        self.kind=kind
+        self.rng=rng or random.Random()
+        self.x=self.rng.random()
+        self.y=self.rng.random()
+        self.phase=self.rng.uniform(0,math.tau)
+        self.speed=self.rng.uniform(16,28) if kind=='rain' else self.rng.uniform(.5,1.0)
+        self.size=self.rng.uniform(12,24) if kind=='rain' else self.rng.uniform(2,4)
+
+    def step(self,width,height):
+        self.phase+=.075
+        wind=-4.5 if self.kind=='rain' else .35+math.sin(self.phase)*.45
+        self.x+=wind/max(1,width)
+        self.y+=self.speed/max(1,height)
+        if self.y>1.04 or self.x<-.05 or self.x>1.05:
+            self.x=self.rng.random()
+            self.y=-.04
+        return self.x*width,self.y*height
+
+
+class SeattleBackdrop(CyberTerminal):
+    """Responsive city artwork with optional rain or cherry blossom particles."""
+    def set_scene(self,filename,effect=None):
+        if (filename,effect)==(getattr(self,'scene_file',None),getattr(self,'effect',None)):
+            return
+        self.scene_file,self.effect=filename,effect
+        self.scene_size=None
+        if hasattr(self,'skyline'):
+            del self.skyline
+        self.particles=[WeatherParticle(effect) for _ in range(200 if effect=='rain' else 22)] if effect else []
+
+    def animate(self):
+        self.timer=None
+        if not self.running:
+            return
+        if self.winfo_ismapped():
+            from PIL import Image, ImageTk
+            size=(max(1,self.winfo_width()),max(1,self.winfo_height()))
+            if not hasattr(self,'skyline'):
+                filename=getattr(self,'scene_file','seattle_skyline.png')
+                with Image.open(Path(__file__).resolve().parent/'assets'/filename) as image:
+                    self.skyline=image.convert('RGB')
+            if getattr(self,'scene_size',None)!=size or not self.find_withtag('backdrop'):
+                scene=seattle_background(self.skyline,size)
+                if getattr(self,'effect',None)=='rain':
+                    scene=Image.blend(scene,Image.new('RGB',size,'#202830'),.12)
+                self.photo=ImageTk.PhotoImage(scene,master=self)
+                self.delete('all')
+                self.create_image(0,0,image=self.photo,anchor='nw',tags='backdrop')
+                self.scene_size=size
+            if getattr(self,'effect',None)=='rain':
+                count=max(160,min(360,round(size[0]*size[1]/1800)))
+                if len(self.particles)<count:
+                    self.particles.extend(WeatherParticle('rain') for _ in range(count-len(self.particles)))
+                elif len(self.particles)>count:
+                    del self.particles[count:]
+            self.delete('weather')
+            for particle in getattr(self,'particles',[]):
+                x,y=particle.step(*size)
+                if particle.kind=='rain':
+                    self.create_line(x,y,x-4,y+particle.size,
+                                     fill='#b0c4cd' if particle.size>19 else '#7899a9',
+                                     width=1.5 if particle.size>19 else 1,tags='weather')
+                else:
+                    span=particle.size*(.35+abs(math.sin(particle.phase)))
+                    self.create_polygon(x-span,y,x,y-particle.size*.5,x+span,y,
+                                        x+span*.45,y+particle.size,x,y+particle.size*.7,
+                                        x-span*.6,y+particle.size*.8,
+                                        fill='#f5c3d1',outline='',tags='weather')
+                    self.create_line(x,y,x+span*.3,y+particle.size*.6,
+                                     fill='#ce8fa9',width=1,tags='weather')
+            callback=getattr(self,'on_draw',None)
+            if callback:
+                callback(self)
+        self.timer=self.after(60 if getattr(self,'effect',None) else 250,self.animate)
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -344,6 +430,8 @@ class App:
         self.main_ocean = OceanAquarium(root, height=220)
         self.main_ocean.full_depth = True
         self.ocean_panels = [self.main_ocean]
+        self.main_seattle = SeattleBackdrop(root)
+        self.seattle_panels = [self.main_seattle]
         form = self.surface(root, padding=10)
         self.main_form = form
         form.pack(fill='x')
@@ -358,7 +446,7 @@ class App:
         self.worker_control = ttk.Spinbox(form, from_=1, to=8, textvariable=self.workers, width=10)
         self.worker_control.grid(row=3, column=1, sticky='w')
         self.surface(form, label=True, text='Appearance').grid(row=4, column=0, sticky='w')
-        themes = ttk.Combobox(form, textvariable=self.theme, values=('Standard', 'Arasaka', 'Ocean'), state='readonly', width=18)
+        themes = ttk.Combobox(form, textvariable=self.theme, values=('Standard', 'Arasaka', 'Ocean', 'Seattle', 'Seattle Rain', 'Tokyo'), state='readonly', width=18)
         themes.grid(row=4, column=1, sticky='w', pady=(6, 0))
         themes.bind('<<ComboboxSelected>>', self.apply_theme)
         actions = self.surface(root, padding=(10,0))
@@ -383,6 +471,8 @@ class App:
         self.style.configure('Brand.TLabel', font=('TkDefaultFont', 12, 'bold'))
         self.main_ocean.on_draw = self.paint_surfaces
         self.editor_ocean.on_draw = self.paint_surfaces
+        self.main_seattle.on_draw = self.paint_surfaces
+        self.editor_seattle.on_draw = self.paint_surfaces
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(150, self.poll)
 
@@ -399,7 +489,11 @@ class App:
     def apply_theme(self, event=None):
         dark = self.theme.get() == 'Arasaka'
         ocean = self.theme.get() == 'Ocean'
-        if (dark or ocean) and 'arasaka' not in self.style.theme_names():
+        seattle = self.theme.get() in ('Seattle','Seattle Rain')
+        rain = self.theme.get() == 'Seattle Rain'
+        tokyo = self.theme.get() == 'Tokyo'
+        city = seattle or tokyo
+        if (dark or ocean or city) and 'arasaka' not in self.style.theme_names():
             bg, panel, ink, red = '#111215', '#202126', '#f0eff0', '#ff2448'
             self.arasaka_settings = {
                 '.': {'configure': {'background': bg, 'foreground': ink,
@@ -441,15 +535,42 @@ class App:
             for old, new in palette.items():
                 settings = settings.replace(old, new)
             self.style.theme_create('ocean', parent='clam', settings=json.loads(settings))
-        self.style.theme_use('ocean' if ocean else 'arasaka' if dark else self.default_theme)
+        if seattle and 'seattle' not in self.style.theme_names():
+            palette={'#111215':'#102f36','#202126':'#1a4148','#f0eff0':'#f2f6f1',
+                '#ff2448':'#70cbaa','#454047':'#527781','#29292f':'#16363d',
+                '#a5102b':'#21685c','#8d858c':'#a0b8bb','#ba102f':'#184f58',
+                '#a61b35':'#4d978a','#191a1e':'#1c343c','#9b122c':'#286458',
+                '#51212c':'#28505b','#612230':'#466d74'}
+            settings=json.dumps(self.arasaka_settings)
+            for old,new in palette.items():
+                settings=settings.replace(old,new)
+            self.style.theme_create('seattle',parent='clam',settings=json.loads(settings))
+        if tokyo and 'tokyo' not in self.style.theme_names():
+            palette={'#111215':'#302837','#202126':'#453746','#f0eff0':'#fff4eb',
+                '#ff2448':'#f3b0ba','#454047':'#856e83','#29292f':'#382d3e',
+                '#a5102b':'#744957','#8d858c':'#b9a8b6','#ba102f':'#694253',
+                '#a61b35':'#a9798c','#191a1e':'#362e3a','#9b122c':'#805364',
+                '#51212c':'#604858','#612230':'#8c687b'}
+            settings=json.dumps(self.arasaka_settings)
+            for old,new in palette.items():
+                settings=settings.replace(old,new)
+            self.style.theme_create('tokyo',parent='clam',settings=json.loads(settings))
+        for panel in self.seattle_panels:
+            panel.set_scene('tokyo_skyline.png' if tokyo else 'seattle_rain_skyline.png' if rain else 'seattle_skyline.png',
+                            'petals' if tokyo else 'rain' if rain else None)
+        self.style.theme_use('tokyo' if tokyo else 'seattle' if seattle else 'ocean' if ocean else 'arasaka' if dark else self.default_theme)
         background,foreground=surface_theme_colors(self.root,self.style)
         for surface in self.ocean_surfaces:
             surface.clear_ocean(background,foreground)
         self.root.minsize(640, 360)
-        self.root.configure(background='#082c40' if ocean else '#111215' if dark else self.default_root_bg)
-        self.editor.configure(background='#082c40' if ocean else '#111215' if dark else self.default_root_bg)
-        self.brand.set('OCEAN  //  LINESCAN EXPLORER' if ocean else 'ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
-        self.log.configure(**({'background': '#082c40', 'foreground': '#e8f7f5',
+        self.root.configure(background='#302837' if tokyo else '#102f36' if seattle else '#082c40' if ocean else '#111215' if dark else self.default_root_bg)
+        self.editor.configure(background='#302837' if tokyo else '#102f36' if seattle else '#082c40' if ocean else '#111215' if dark else self.default_root_bg)
+        self.brand.set('TOKYO  //  LINESCAN EXPLORER' if tokyo else 'SEATTLE RAIN  //  LINESCAN EXPLORER' if rain else 'SEATTLE  //  LINESCAN EXPLORER' if seattle else 'OCEAN  //  LINESCAN EXPLORER' if ocean else 'ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
+        self.log.configure(**({'background':'#302837','foreground':'#fff4eb',
+                              'insertbackground':'#f3b0ba','selectbackground':'#744957',
+                              'selectforeground':'#ffffff'} if tokyo else {'background':'#102f36','foreground':'#f2f6f1',
+                              'insertbackground':'#70cbaa','selectbackground':'#21685c',
+                              'selectforeground':'#ffffff'} if seattle else {'background': '#082c40', 'foreground': '#e8f7f5',
                               'insertbackground': '#54dbc9', 'selectbackground': '#176d80',
                               'selectforeground': '#ffffff'} if ocean else {'background': '#17181c', 'foreground': '#f0eff0',
                               'insertbackground': '#ff2448', 'selectbackground': '#a5102b',
@@ -458,17 +579,17 @@ class App:
         # Decorative backgrounds must not reserve space in the working layout.
         self.editor.minsize(460,480)
         self.main_form.pack_configure(pady=0)
-        self.editor_sidebar.pack_configure(padx=(8 if ocean else 0),pady=(8 if ocean else 0))
-        self.editor_viewport.pack_configure(padx=(8 if ocean else 0),pady=(8 if ocean else 0))
-        for terminal in self.theme_terminals + self.ocean_panels:
-            active = ocean if terminal in self.ocean_panels else dark
+        self.editor_sidebar.pack_configure(padx=(8 if ocean or city else 0),pady=(8 if ocean or city else 0))
+        self.editor_viewport.pack_configure(padx=(8 if ocean or city else 0),pady=(8 if ocean or city else 0))
+        for terminal in self.theme_terminals + self.ocean_panels + self.seattle_panels:
+            active = city if terminal in self.seattle_panels else ocean if terminal in self.ocean_panels else dark
             if active:
-                if terminal is self.main_ocean:
+                if terminal in (self.main_ocean,self.main_seattle):
                     terminal.place(x=0,y=0,relwidth=1,relheight=1)
                     terminal.tk.call('lower',str(terminal))
                 elif terminal is self.main_terminal:
                     terminal.pack(before=self.main_form, fill='x', padx=10)
-                elif terminal is self.editor_ocean:
+                elif terminal in (self.editor_ocean,self.editor_seattle):
                     terminal.place(x=0,y=0,relwidth=1,relheight=1)
                     terminal.tk.call('lower',str(terminal))
                 else:
@@ -546,6 +667,8 @@ class App:
         self.editor_ocean.configure(width=148)
         self.editor_ocean.full_depth = True
         self.ocean_panels.append(self.editor_ocean)
+        self.editor_seattle = SeattleBackdrop(self.editor)
+        self.seattle_panels.append(self.editor_seattle)
         viewport = self.surface(self.editor)
         self.editor_viewport = viewport
         viewport.pack(side='left', fill='both', expand=True)
