@@ -127,3 +127,9 @@ Seattle backgrounds resize to fill both windows without borders or margins. Wide
 Choose **Appearance → Tokyo** for the supplied Tokyo skyline photo adapted to pixel art, with Tokyo Tower, Mount Fuji, sunset colors, and slowly drifting cherry blossom petals. Choose **Appearance → Seattle Rain** for the Seattle artwork in a cooler tone with slanted rain streaks. Both effects appear behind labels and layout areas in both windows, fill the window when resized, and leave control boxes and scan pixels unchanged. **Seattle** remains available without rain. Effects stop when changing themes; hidden windows skip particle updates.
 
 Seattle Rain now uses its own overcast skyline artwork with layered grey storm clouds, muted wet-weather lighting, and haze around Mount Rainier. The rain is denser, faster, and longer, with differently weighted streaks for a pouring effect. Density adjusts to window area. Regular Seattle keeps its sunny artwork, and Tokyo petals are unchanged.
+
+## Text log and themed progress
+
+The command log is now borderless text over the theme background. Scroll with the mouse wheel; right-click (or Control-click on Mac) and choose **Copy log** to copy the complete log. Clicking the log also allows Ctrl+C / Command+C to copy it.
+
+Analysis progress retains the actual image count and percentage. During collection it shows activity without claiming a percentage. **Arasaka** displays shifting code characters, **Seattle / Seattle Rain** use a salmon, **Tokyo** uses cherry blossom flowers, and **Ocean** uses a walking crab. The marker advances with completed images; animations stop when processing ends or fails. **Standard** uses its native progress bar.

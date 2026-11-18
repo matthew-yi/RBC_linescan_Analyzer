@@ -187,6 +187,225 @@ class OceanSurface(tk.Canvas):
         self.tag_lower('ocean')
 
 
+class OverlayLog(OceanSurface):
+    """Borderless, scrollable log text with the scene visible between lines."""
+    def __init__(self,parent):
+        self.lines=[]
+        self.offset=0
+        super().__init__(parent)
+        self.configure(height=82,takefocus=True)
+        self.bind('<Configure>',lambda event:self.render_log())
+        self.bind('<Button-1>',lambda event:self.focus_set())
+        self.bind('<MouseWheel>',self.scroll_log)
+        self.bind('<Button-4>',lambda event:self.scroll_by(3))
+        self.bind('<Button-5>',lambda event:self.scroll_by(-3))
+        for key in ('Control-c','Command-c'):
+            self.bind('<'+key+'>',lambda event:self.copy_log())
+        menu=tk.Menu(self,tearoff=False)
+        menu.add_command(label='Copy log',command=self.copy_log)
+        self.bind('<Button-3>',lambda event:menu.tk_popup(event.x_root,event.y_root))
+        self.bind('<Control-Button-1>',lambda event:menu.tk_popup(event.x_root,event.y_root))
+
+    def append(self,text):
+        self.lines.extend(str(text).splitlines() or [''])
+        self.offset=0
+        self.render_log()
+
+    def copy_log(self):
+        self.clipboard_clear()
+        self.clipboard_append('\n'.join(self.lines))
+        return 'break'
+
+    def scroll_by(self,lines):
+        self.offset=max(0,min(max(0,getattr(self,'wrapped_count',0)-1),self.offset+lines))
+        self.render_log()
+        return 'break'
+
+    def scroll_log(self,event):
+        if event.delta:
+            return self.scroll_by(3 if event.delta>0 else -3)
+
+    def clear_ocean(self,background,foreground):
+        super().clear_ocean(background,foreground)
+        self.render_log()
+
+    def render_log(self):
+        import textwrap
+        from tkinter import font
+        if not self.winfo_exists():
+            return
+        self.delete('logtext')
+        face=font.nametofont('TkFixedFont')
+        columns=max(8,(self.winfo_width()-12)//max(1,face.measure('M')))
+        wrapped=[part for line in self.lines for part in (textwrap.wrap(line,columns,
+                 replace_whitespace=False,drop_whitespace=False) or [''])]
+        self.wrapped_count=len(wrapped)
+        step=face.metrics('linespace')+2
+        capacity=max(1,(self.winfo_height()-6)//step)
+        self.offset=min(self.offset,max(0,len(wrapped)-capacity))
+        end=len(wrapped)-self.offset
+        for n,line in enumerate(wrapped[max(0,end-capacity):end]):
+            self.create_text(4,3+n*step,anchor='nw',text=line,font=face,
+                             fill=self.ink,tags='logtext')
+        self.tag_raise('logtext')
+
+
+def progress_fraction(value,maximum):
+    return max(0.0,min(1.0,float(value)/max(1.0,float(maximum))))
+
+
+class ThemeProgress(OceanSurface):
+    """Real progress with a theme-specific marker and a separate busy mode."""
+    def __init__(self,parent):
+        self.mode='determinate'
+        self.maximum=1
+        self.value=0
+        self.theme='Standard'
+        self.tick=0
+        self.timer=None
+        self.active=False
+        self.last_fraction=0
+        super().__init__(parent)
+        self.configure(height=18)
+        self.native=ttk.Progressbar(self,mode=self.mode,maximum=1)
+        self.bind('<Configure>',lambda event:self.render())
+        self.bind('<Destroy>',self.destroyed,add='+')
+        self.render()
+
+    def configure(self,cnf=None,**kwargs):
+        if isinstance(cnf,dict):
+            kwargs={**cnf,**kwargs}
+            cnf=None
+        changed={name:kwargs.pop(name) for name in ('mode','maximum','value') if name in kwargs}
+        result=super().configure(cnf,**kwargs) if cnf is not None or kwargs else None
+        for name,value in changed.items():
+            setattr(self,name,value)
+        if hasattr(self,'native'):
+            if changed:
+                self.native.configure(**changed)
+                if 'value' in changed:
+                    self.active=progress_fraction(self.value,self.maximum)<1
+            self.render()
+            self.schedule()
+        return result
+
+    config=configure
+
+    def set_theme(self,name):
+        self.theme=name
+        super().configure(height=18 if name=='Standard' else 46)
+        self.render()
+        self.schedule()
+
+    def clear_ocean(self,background,foreground):
+        super().clear_ocean(background,foreground)
+        if hasattr(self,'native'):
+            self.render()
+
+    def start(self,interval=15):
+        self.active=True
+        self.native.start(interval)
+        self.schedule()
+
+    def stop(self):
+        self.active=False
+        self.native.stop()
+        if self.timer is not None:
+            self.after_cancel(self.timer)
+            self.timer=None
+        self.render()
+
+    def destroyed(self,event):
+        if event.widget is self and self.timer is not None:
+            self.after_cancel(self.timer)
+            self.timer=None
+
+    def schedule(self):
+        if self.active and self.timer is None:
+            self.timer=self.after(90,self.animate)
+
+    def animate(self):
+        self.timer=None
+        if not self.active:
+            return
+        self.tick+=1
+        if self.winfo_ismapped():
+            self.render()
+        self.schedule()
+
+    def render(self):
+        if not hasattr(self,'native') or not self.winfo_exists():
+            return
+        self.delete('progress')
+        if self.theme=='Standard':
+            self.native.place(x=0,rely=.5,relwidth=1,height=14,anchor='w')
+            return
+        self.native.place_forget()
+        width=max(70,self.winfo_width())
+        left,right=24,width-24
+        fraction=progress_fraction(self.value,self.maximum)
+        if self.mode=='indeterminate' and self.active:
+            fraction=.5-.5*math.cos(self.tick*.09)
+        self.last_fraction=fraction
+        x=left+(right-left)*fraction
+        y=19
+        colors={'Arasaka':'#ff3458','Ocean':'#65d0c6','Tokyo':'#efb0c7'}
+        color=colors.get(self.theme,'#8bd0b4')
+        self.create_line(left,38,right,38,fill=self.ink,width=1,tags='progress')
+        if fraction>0:
+            self.create_line(left,38,x,38,fill=color,width=3,tags='progress')
+        if self.theme=='Arasaka':
+            alphabet='01ABCDEFGHIJKLMNOPQRSTUVWXYZアイウエオカキクケコ'
+            count=max(1,int((x-left)/11))
+            for col in range(count):
+                for row in range(2):
+                    glyph=alphabet[(self.tick*7+col*13+row*17)%len(alphabet)]
+                    self.create_text(left+col*11,7+row*15,text=glyph,anchor='nw',
+                                     font=('Courier',10,'bold'),fill='#ffd3dc' if row==0 else color,tags='progress')
+        elif self.theme=='Tokyo':
+            for px in range(int(left),int(x),40):
+                self.flower(px,22,3,'#bd7d99')
+            self.flower(x,y,5,'#f5c8d8')
+        elif self.theme=='Ocean':
+            self.crab(x,y)
+        else:
+            self.salmon(x,y)
+
+    def flower(self,x,y,r,color):
+        for n in range(5):
+            angle=n*math.tau/5-math.pi/2
+            px,py=x+math.cos(angle)*r,y+math.sin(angle)*r
+            self.create_oval(px-r*.65,py-r*.65,px+r*.65,py+r*.65,
+                             fill=color,outline='',tags='progress')
+        self.create_oval(x-1.5,y-1.5,x+1.5,y+1.5,fill='#f5d78b',outline='',tags='progress')
+
+    def salmon(self,x,y):
+        tail=2*math.sin(self.tick*.7) if self.active else 0
+        self.create_polygon(x-11,y,x-22,y-7+tail,x-19,y+tail,x-22,y+7+tail,
+                            fill='#71958a',outline='',tags='progress')
+        self.create_polygon(x-14,y,x-6,y-6,x+8,y-5,x+18,y,x+8,y+6,x-6,y+5,
+                            fill='#d3d8cb',outline='',tags='progress')
+        self.create_polygon(x-13,y-1,x-5,y-6,x+8,y-5,x+16,y,
+                            fill='#486c64',outline='',tags='progress')
+        self.create_line(x-8,y+1,x+10,y+1,fill='#d78d91',width=3,tags='progress')
+        self.create_polygon(x-6,y-5,x-2,y-11,x+4,y-5,fill='#6a8c80',outline='',tags='progress')
+        self.create_rectangle(x+10,y-3,x+12,y-1,fill='#132d31',outline='',tags='progress')
+
+    def crab(self,x,y):
+        step=2*math.sin(self.tick*.7) if self.active else 0
+        for side in (-1,1):
+            for n in range(3):
+                self.create_line(x+side*8,y+2+n*2,x+side*(15+n*2),y+8+n+step*side,
+                                 fill='#dc7858',width=2,tags='progress')
+            self.create_line(x+side*7,y-2,x+side*16,y-9,fill='#e5785b',width=2,tags='progress')
+            self.create_polygon(x+side*14,y-8,x+side*20,y-14,x+side*20,y-5,
+                                x+side*15,y-4,fill='#ef9673',outline='',tags='progress')
+        self.create_oval(x-10,y-5,x+10,y+8,fill='#d9634a',outline='',tags='progress')
+        for side in (-1,1):
+            self.create_line(x+side*4,y-3,x+side*5,y-8,fill='#f5b18a',width=2,tags='progress')
+            self.create_rectangle(x+side*5-1,y-10,x+side*5+1,y-8,fill='#172a30',outline='',tags='progress')
+
+
 class OceanDrifter:
     """A bounded, smoothly steered random path in normalized water coordinates."""
     def __init__(self, depth, rng=None):
@@ -459,15 +678,16 @@ class App:
         self.surface(root, label=True, textvariable=self.status, padding=10, wraplength=1050).pack(fill='x')
         self.progress_text = tk.StringVar(value='Ready')
         self.surface(root, label=True, textvariable=self.progress_text, padding=(10, 0)).pack(anchor='w')
-        self.progress = ttk.Progressbar(root, mode='determinate', maximum=1)
+        self.progress = ThemeProgress(root)
+        self.ocean_surfaces.append(self.progress)
         self.progress.pack(fill='x', padx=10, pady=8)
         self.open_editor_button = ttk.Button(actions, text='Open editor', command=self.open_editor, state='disabled')
         self.open_editor_button.pack(side='left')
         self.build_editor()
-        self.log = tk.Text(root, height=5, state='disabled')
+        self.log = OverlayLog(root)
+        self.ocean_surfaces.append(self.log)
         self.log.pack(fill='both', expand=True, padx=10, pady=8)
         self.default_root_bg = root.cget('background')
-        self.default_log_colors = {key: self.log.cget(key) for key in ('background', 'foreground', 'insertbackground', 'selectbackground', 'selectforeground')}
         self.style.configure('Brand.TLabel', font=('TkDefaultFont', 12, 'bold'))
         self.main_ocean.on_draw = self.paint_surfaces
         self.editor_ocean.on_draw = self.paint_surfaces
@@ -566,15 +786,7 @@ class App:
         self.root.configure(background='#302837' if tokyo else '#102f36' if seattle else '#082c40' if ocean else '#111215' if dark else self.default_root_bg)
         self.editor.configure(background='#302837' if tokyo else '#102f36' if seattle else '#082c40' if ocean else '#111215' if dark else self.default_root_bg)
         self.brand.set('TOKYO  //  LINESCAN EXPLORER' if tokyo else 'SEATTLE RAIN  //  LINESCAN EXPLORER' if rain else 'SEATTLE  //  LINESCAN EXPLORER' if seattle else 'OCEAN  //  LINESCAN EXPLORER' if ocean else 'ARASAKA  //  RBC LINESCAN SYSTEMS' if dark else 'RBC LINESCAN ANALYZER')
-        self.log.configure(**({'background':'#302837','foreground':'#fff4eb',
-                              'insertbackground':'#f3b0ba','selectbackground':'#744957',
-                              'selectforeground':'#ffffff'} if tokyo else {'background':'#102f36','foreground':'#f2f6f1',
-                              'insertbackground':'#70cbaa','selectbackground':'#21685c',
-                              'selectforeground':'#ffffff'} if seattle else {'background': '#082c40', 'foreground': '#e8f7f5',
-                              'insertbackground': '#54dbc9', 'selectbackground': '#176d80',
-                              'selectforeground': '#ffffff'} if ocean else {'background': '#17181c', 'foreground': '#f0eff0',
-                              'insertbackground': '#ff2448', 'selectbackground': '#a5102b',
-                              'selectforeground': '#ffffff'} if dark else self.default_log_colors))
+        self.progress.set_theme(self.theme.get())
 
         # Decorative backgrounds must not reserve space in the working layout.
         self.editor.minsize(460,480)
@@ -783,10 +995,7 @@ class App:
             self.fiji.set(value)
 
     def write_log(self, text):
-        self.log.configure(state='normal')
-        self.log.insert('end', text+'\n')
-        self.log.see('end')
-        self.log.configure(state='disabled')
+        self.log.append(text)
 
     def set_busy(self, busy):
         self.busy = busy

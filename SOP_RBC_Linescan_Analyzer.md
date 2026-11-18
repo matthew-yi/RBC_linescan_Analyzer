@@ -31,7 +31,7 @@ Run setup again when moving the application to a different computer. Do not copy
    - Windows: select `ImageJ-win64.exe` inside the Fiji folder.
 4. Set **Fallback duration** to the known scan duration in **seconds**. It is used only when XML frame timing is unavailable; do not leave a guessed value for scans lacking timing metadata.
 5. Start with **Simultaneous images = 2**. Use **1** if the computer struggles or you prefer sequential processing.
-6. Click **Run entire folder**. Wait for analysis to finish; the linescan editor opens automatically. Do not close the application during analysis.
+6. Click **Run entire folder**. The themed indicator shows activity during collection and actual progress during analysis. Wait for analysis to finish; the linescan editor opens automatically. Do not close the application during analysis.
 
 The application creates a new **`<experiment> - RBC Analysis - <date and time>`** folder beside the selected experiment folder. Original inputs are preserved.
 
@@ -76,3 +76,5 @@ Click **Save** before stopping. To return later, launch the application, click *
 - **Analysis fails:** read the run folder’s **`fiji.log`** and, for parallel runs, the indicated **`fiji_worker_N.log`**.
 - **Computer slows down:** reduce **Simultaneous images**.
 - **Final workbook is missing:** complete and save the review of every image, then click Finish / export.
+
+The on-screen log appears as text over the background. Scroll to read earlier messages; right-click (Control-click on Mac) and select **Copy log** to copy all messages.
